@@ -1,4 +1,5 @@
 import { getState, setState } from "../shared/storage";
+import { extractResponseJsonText, parseEvaluationFromUnknown } from "./openai-parser";
 import type {
   ActivityData,
   EvaluationData,
@@ -14,10 +15,6 @@ function createSnapshotHash(listing: ListingData): string {
 
 function nowIso(): string {
   return new Date().toISOString();
-}
-
-function clampScore(n: number): number {
-  return Math.max(0, Math.min(100, Math.round(n)));
 }
 
 async function upsertViewed(listing: ListingData) {
@@ -155,17 +152,17 @@ async function runAiEvaluation(listing: ListingData, contextText: string): Promi
     throw new Error(`OpenAI request failed (${response.status}).`);
   }
 
-  const payload = (await response.json()) as { output_text?: string };
-  const text = payload.output_text || "";
-  const parsed = JSON.parse(text) as Omit<EvaluationData, "listingId" | "snapshotHash" | "evaluatedAt">;
+  const payload = (await response.json()) as unknown;
+  const text = extractResponseJsonText(payload);
+  const parsed = parseEvaluationFromUnknown(JSON.parse(text));
 
   const evaluation: EvaluationData = {
     listingId: listing.listingId,
     snapshotHash,
-    priceScore: clampScore(parsed.priceScore),
-    qualityScore: clampScore(parsed.qualityScore),
-    riskFlags: Array.isArray(parsed.riskFlags) ? parsed.riskFlags.slice(0, 10) : [],
-    summary: parsed.summary || "",
+    priceScore: parsed.priceScore,
+    qualityScore: parsed.qualityScore,
+    riskFlags: parsed.riskFlags,
+    summary: parsed.summary,
     confidence: parsed.confidence,
     evidence: parsed.evidence,
     evaluatedAt: nowIso()

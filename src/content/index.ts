@@ -1,62 +1,17 @@
 import type { EvaluationData, ListingData } from "../shared/types";
+import {
+  extractListingFromDocument,
+  isLikelyListingPath,
+  readPageContext
+} from "../shared/listing";
 
 type ListingStatePayload = {
   contacted: boolean;
   latestEvaluation: EvaluationData | null;
 };
 
-function parseNumber(text?: string | null): number | undefined {
-  if (!text) return undefined;
-  const digits = text.replace(/[^0-9.]/g, "");
-  if (!digits) return undefined;
-  const value = Number(digits);
-  return Number.isFinite(value) ? value : undefined;
-}
-
-function parseListingId(): string | null {
-  const match = window.location.pathname.match(/\/(?:rental|sale|building)\/(\d+)/i);
-  if (match?.[1]) {
-    return match[1];
-  }
-
-  const fallback = window.location.pathname.match(/(\d{5,})/);
-  return fallback?.[1] || null;
-}
-
 function isLikelyListingPage(): boolean {
-  return /\/(rental|sale|building)\//i.test(window.location.pathname);
-}
-
-function extractListing(): ListingData | null {
-  const listingId = parseListingId();
-  if (!listingId) return null;
-
-  const title =
-    document.querySelector("h1")?.textContent?.trim() ||
-    document.querySelector("[data-testid='listing-address']")?.textContent?.trim() ||
-    "Unknown Address";
-
-  const priceText =
-    document.querySelector("[data-testid='price']")?.textContent ||
-    document.body.innerText.match(/\$[\d,]+/)?.[0] ||
-    "";
-
-  return {
-    listingId,
-    url: window.location.href,
-    address: title,
-    price: parseNumber(priceText),
-    beds: parseNumber(document.body.innerText.match(/(\d+(?:\.\d+)?)\s*bed/i)?.[1]),
-    baths: parseNumber(document.body.innerText.match(/(\d+(?:\.\d+)?)\s*bath/i)?.[1]),
-    sqft: parseNumber(document.body.innerText.match(/([\d,]+)\s*(?:sq\.?\s*ft|square\s*feet)/i)?.[1]),
-    building: document.querySelector("[data-testid='building-name']")?.textContent?.trim(),
-    lastSeenAt: new Date().toISOString()
-  };
-}
-
-function readPageContext(): string {
-  const main = document.querySelector("main")?.textContent || document.body.innerText;
-  return main.replace(/\s+/g, " ").trim().slice(0, 12000);
+  return isLikelyListingPath(window.location.pathname);
 }
 
 function createRoot(): HTMLDivElement {
@@ -125,7 +80,7 @@ async function sendMessage<T>(message: unknown): Promise<T> {
 async function init() {
   if (!isLikelyListingPage()) return;
 
-  const listing = extractListing();
+  const listing = extractListingFromDocument(document, window.location.href);
   if (!listing) return;
 
   const root = createRoot();
@@ -158,7 +113,7 @@ async function init() {
         const evaluation = await sendMessage<EvaluationData>({
           type: "RUN_AI_EVALUATION",
           listing,
-          contextText: readPageContext()
+          contextText: readPageContext(document)
         });
         state = { ...state, latestEvaluation: evaluation };
         busy = false;

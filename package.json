@@ -6,11 +6,14 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "watch": "node scripts/build.mjs --watch",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test tests/**/*.test.ts"
   },
   "devDependencies": {
     "@types/chrome": "^0.1.24",
+    "@types/node": "^22.13.17",
     "esbuild": "^0.25.1",
+    "tsx": "^4.19.3",
     "typescript": "^5.8.2"
   }
 }

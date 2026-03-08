@@ -36,6 +36,7 @@ Chrome extension (Manifest V3) to track StreetEasy listings you've viewed/contac
 - Build once: `npm run build`
 - Watch mode: `npm run watch`
 - Type checks: `npm run typecheck`
+- Unit tests: `npm run test`
 
 ## BYOK Notes
 - Add your OpenAI API key in extension options.
