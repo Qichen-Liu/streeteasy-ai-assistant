@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>StreetEasy AI Assistant Settings</title>
+    <style>
+      body { font-family: Arial, sans-serif; background: #f8fafc; color: #0f172a; margin: 0; }
+      main { max-width: 720px; margin: 24px auto; background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; }
+      h1 { margin-top: 0; }
+      label { display: block; margin-bottom: 6px; font-weight: 600; }
+      input, select { width: 100%; padding: 8px; margin-bottom: 12px; border: 1px solid #cbd5e1; border-radius: 8px; }
+      button { border: 0; border-radius: 8px; padding: 8px 12px; cursor: pointer; }
+      .save { background: #2563eb; color: white; margin-right: 8px; }
+      .danger { background: #b91c1c; color: white; }
+      .status { margin-top: 12px; color: #334155; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Settings</h1>
+      <label for="apiKey">OpenAI API Key</label>
+      <input id="apiKey" type="password" placeholder="sk-..." />
+
+      <label for="model">Model</label>
+      <select id="model">
+        <option value="gpt-4.1-mini">gpt-4.1-mini</option>
+        <option value="gpt-4.1">gpt-4.1</option>
+      </select>
+
+      <label for="mode">Report Mode</label>
+      <select id="mode">
+        <option value="fast">Fast</option>
+        <option value="detailed">Detailed</option>
+      </select>
+
+      <label for="priorities">Risk Priorities (comma separated)</label>
+      <input id="priorities" type="text" placeholder="price,noise,fees,commute" />
+
+      <button class="save" id="saveBtn">Save Settings</button>
+      <button class="danger" id="clearBtn">Clear API Key</button>
+      <div class="status" id="status"></div>
+    </main>
+    <script type="module" src="./options.js"></script>
+  </body>
+</html>
