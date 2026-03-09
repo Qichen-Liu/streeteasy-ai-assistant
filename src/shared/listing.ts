@@ -36,9 +36,54 @@ export function parseListingIdFromPath(pathname: string): string | null {
   return fallback?.[1] || null;
 }
 
+export function parseListingIdFromUrl(urlValue: string): string | null {
+  try {
+    const parsedUrl = new URL(urlValue, "https://streeteasy.com");
+    const fromPath = parseListingIdFromPath(parsedUrl.pathname);
+    if (fromPath) return fromPath;
+
+    const queryCandidates = ["listing", "listingId", "id", "rental", "sale"];
+    for (const key of queryCandidates) {
+      const value = parsedUrl.searchParams.get(key);
+      if (value && /^\d{5,}$/.test(value)) {
+        return value;
+      }
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
+export function parseListingIdFromDocument(doc: Document, url: string): string | null {
+  const byCurrentUrl = parseListingIdFromUrl(url);
+  if (byCurrentUrl) return byCurrentUrl;
+
+  const canonical = doc.querySelector("link[rel='canonical']")?.getAttribute("href");
+  if (canonical) {
+    const byCanonical = parseListingIdFromUrl(canonical);
+    if (byCanonical) return byCanonical;
+  }
+
+  const ogUrl = doc.querySelector("meta[property='og:url']")?.getAttribute("content");
+  if (ogUrl) {
+    const byOgUrl = parseListingIdFromUrl(ogUrl);
+    if (byOgUrl) return byOgUrl;
+  }
+
+  const datasetId = doc.querySelector("[data-listing-id]")?.getAttribute("data-listing-id");
+  if (datasetId && /^\d{5,}$/.test(datasetId)) {
+    return datasetId;
+  }
+
+  const bodyText = doc.body?.innerText || "";
+  const inlineId = bodyText.match(/\b(?:listing|property)\s*id[:#]?\s*(\d{5,})\b/i)?.[1];
+  return inlineId || null;
+}
+
 export function extractListingFromDocument(doc: Document, url: string): ListingData | null {
-  const urlObj = new URL(url);
-  const listingId = parseListingIdFromPath(urlObj.pathname);
+  const listingId = parseListingIdFromDocument(doc, url);
   if (!listingId) {
     return null;
   }
