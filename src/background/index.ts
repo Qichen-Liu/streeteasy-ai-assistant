@@ -17,6 +17,19 @@ function nowIso(): string {
   return new Date().toISOString();
 }
 
+function getDedupKey(listing: ListingData): string {
+  try {
+    const parsed = new URL(listing.url, "https://streeteasy.com");
+    const path = parsed.pathname.replace(/\/+$/, "").toLowerCase();
+    if (path) {
+      return `path:${path}`;
+    }
+  } catch {
+    // Fall through to listingId.
+  }
+  return `id:${listing.listingId}`;
+}
+
 async function upsertViewed(listing: ListingData) {
   const state = await getState();
   state.listingsById[listing.listingId] = { ...listing, lastSeenAt: nowIso() };
@@ -176,7 +189,16 @@ async function runAiEvaluation(listing: ListingData, contextText: string): Promi
 
 async function getRecentActivity() {
   const state = await getState();
-  const listings = Object.values(state.listingsById);
+  const dedupedByPath = new Map<string, ListingData>();
+  for (const listing of Object.values(state.listingsById)) {
+    const key = getDedupKey(listing);
+    const existing = dedupedByPath.get(key);
+    if (!existing || existing.lastSeenAt.localeCompare(listing.lastSeenAt) < 0) {
+      dedupedByPath.set(key, listing);
+    }
+  }
+
+  const listings = Array.from(dedupedByPath.values());
   listings.sort((a, b) => b.lastSeenAt.localeCompare(a.lastSeenAt));
   return listings.slice(0, 50).map((listing) => {
     const activity = state.activityById[listing.listingId];

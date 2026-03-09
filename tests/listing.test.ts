@@ -35,7 +35,11 @@ test("fallbackListingKeyFromUrl creates stable key for non-numeric listing paths
   );
   assert.equal(
     fallbackListingKeyFromUrl("https://streeteasy.com/rentals/manhattan?utm_source=x&page=2"),
-    "url:/rentals/manhattan?utm_source=x&page=2"
+    "url:/rentals/manhattan"
+  );
+  assert.equal(
+    fallbackListingKeyFromUrl("https://streeteasy.com/rentals/manhattan?page=3"),
+    "url:/rentals/manhattan"
   );
   assert.equal(fallbackListingKeyFromUrl("https://streeteasy.com/blog/market-trends"), null);
 });

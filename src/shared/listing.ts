@@ -63,9 +63,9 @@ export function fallbackListingKeyFromUrl(urlValue: string): string | null {
       return null;
     }
 
-    const normalizedPath = parsedUrl.pathname.replace(/\/+$/, "");
-    const normalizedSearch = parsedUrl.searchParams.toString();
-    return `url:${normalizedPath}${normalizedSearch ? `?${normalizedSearch}` : ""}`;
+    const normalizedPath = parsedUrl.pathname.replace(/\/+$/, "").toLowerCase();
+    // Query/hash params vary by navigation context and should not split the same listing key.
+    return `url:${normalizedPath}`;
   } catch {
     return null;
   }
