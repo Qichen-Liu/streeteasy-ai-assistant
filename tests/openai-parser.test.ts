@@ -24,7 +24,7 @@ test("parseEvaluationFromUnknown coerces defaults safely", () => {
   const parsed = parseEvaluationFromUnknown({
     priceScore: "88",
     qualityScore: 105,
-    riskFlags: ["fee", 123, "noise"],
+    riskFlags: ["price_above_typical_for_area", 123, "partial-doorman-service", "  noisy_street  "],
     summary: "Solid listing",
     confidence: "medium",
     evidence: { price: "below median", quality: "new kitchen", risks: "ask fee" }
@@ -32,6 +32,10 @@ test("parseEvaluationFromUnknown coerces defaults safely", () => {
 
   assert.equal(parsed.priceScore, 88);
   assert.equal(parsed.qualityScore, 100);
-  assert.deepEqual(parsed.riskFlags, ["fee", "noise"]);
+  assert.deepEqual(parsed.riskFlags, [
+    "price above typical for area",
+    "partial doorman service",
+    "noisy street"
+  ]);
   assert.equal(parsed.confidence, "medium");
 });

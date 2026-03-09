@@ -9,7 +9,7 @@ import type {
 } from "../shared/types";
 import type { RuntimeRequest } from "../shared/messages";
 
-const EVALUATION_PROMPT_VERSION = "v2";
+const EVALUATION_PROMPT_VERSION = "v3";
 
 function createSnapshotHash(listing: ListingData): string {
   return [
@@ -134,7 +134,7 @@ Scoring rubric:
 Consistency rules:
 - Scores must align with summary text (no contradictions).
 - If confidence is high, evidence must be specific and strong.
-- Risk flags should be concise snake_case, actionable, and max 6 items.
+- Risk flags should be concise human-readable phrases (plain English, no underscores), actionable, and max 6 items.
 - Summary should be <= 80 words.
 
 Listing:
