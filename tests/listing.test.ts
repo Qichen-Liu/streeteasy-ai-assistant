@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  fallbackListingKeyFromUrl,
   isLikelyListingPath,
   parseListingIdFromPath,
   parseListingIdFromUrl,
@@ -25,6 +26,18 @@ test("parseListingIdFromUrl checks path and query candidates", () => {
   assert.equal(parseListingIdFromUrl("https://streeteasy.com/rental/7654321"), "7654321");
   assert.equal(parseListingIdFromUrl("https://streeteasy.com/foo?listingId=888888"), "888888");
   assert.equal(parseListingIdFromUrl("https://streeteasy.com/foo?x=1"), null);
+});
+
+test("fallbackListingKeyFromUrl creates stable key for non-numeric listing paths", () => {
+  assert.equal(
+    fallbackListingKeyFromUrl("https://streeteasy.com/building/rego-park/unit-5c"),
+    "url:/building/rego-park/unit-5c"
+  );
+  assert.equal(
+    fallbackListingKeyFromUrl("https://streeteasy.com/rentals/manhattan?utm_source=x&page=2"),
+    "url:/rentals/manhattan?utm_source=x&page=2"
+  );
+  assert.equal(fallbackListingKeyFromUrl("https://streeteasy.com/blog/market-trends"), null);
 });
 
 test("parseNumber handles currency and decimals", () => {

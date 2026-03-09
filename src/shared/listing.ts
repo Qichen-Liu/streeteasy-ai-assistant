@@ -56,6 +56,21 @@ export function parseListingIdFromUrl(urlValue: string): string | null {
   return null;
 }
 
+export function fallbackListingKeyFromUrl(urlValue: string): string | null {
+  try {
+    const parsedUrl = new URL(urlValue, "https://streeteasy.com");
+    if (!isLikelyListingPath(parsedUrl.pathname)) {
+      return null;
+    }
+
+    const normalizedPath = parsedUrl.pathname.replace(/\/+$/, "");
+    const normalizedSearch = parsedUrl.searchParams.toString();
+    return `url:${normalizedPath}${normalizedSearch ? `?${normalizedSearch}` : ""}`;
+  } catch {
+    return null;
+  }
+}
+
 export function parseListingIdFromDocument(doc: Document, url: string): string | null {
   const byCurrentUrl = parseListingIdFromUrl(url);
   if (byCurrentUrl) return byCurrentUrl;
@@ -79,7 +94,22 @@ export function parseListingIdFromDocument(doc: Document, url: string): string |
 
   const bodyText = doc.body?.innerText || "";
   const inlineId = bodyText.match(/\b(?:listing|property)\s*id[:#]?\s*(\d{5,})\b/i)?.[1];
-  return inlineId || null;
+  if (inlineId) return inlineId;
+
+  const fallbackCurrent = fallbackListingKeyFromUrl(url);
+  if (fallbackCurrent) return fallbackCurrent;
+
+  if (canonical) {
+    const fallbackCanonical = fallbackListingKeyFromUrl(canonical);
+    if (fallbackCanonical) return fallbackCanonical;
+  }
+
+  if (ogUrl) {
+    const fallbackOg = fallbackListingKeyFromUrl(ogUrl);
+    if (fallbackOg) return fallbackOg;
+  }
+
+  return null;
 }
 
 export function extractListingFromDocument(doc: Document, url: string): ListingData | null {
