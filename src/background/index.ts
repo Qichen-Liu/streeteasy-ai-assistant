@@ -81,6 +81,21 @@ async function toggleContacted(listingId: string, contacted: boolean) {
   return { contacted: existing.contactedAt.length > 0, latestEvaluation: findLatestEvaluation(state, listingId) };
 }
 
+async function removeListing(listingId: string) {
+  const state = await getState();
+
+  delete state.listingsById[listingId];
+  delete state.activityById[listingId];
+
+  for (const [snapshotHash, evaluation] of Object.entries(state.evaluationsBySnapshotKey)) {
+    if (evaluation.listingId === listingId) {
+      delete state.evaluationsBySnapshotKey[snapshotHash];
+    }
+  }
+
+  await setState(state);
+}
+
 async function runAiEvaluation(listing: ListingData, contextText: string): Promise<EvaluationData> {
   const state = await getState();
   const { openaiApiKey, model, riskPriorities, reportMode } = state.settings;
@@ -261,6 +276,11 @@ chrome.runtime.onMessage.addListener((request: RuntimeRequest, _sender, sendResp
       case "RUN_AI_EVALUATION": {
         const payload = await runAiEvaluation(request.listing, request.contextText);
         sendResponse({ ok: true, payload });
+        break;
+      }
+      case "REMOVE_LISTING": {
+        await removeListing(request.listingId);
+        sendResponse({ ok: true });
         break;
       }
       case "GET_RECENT_ACTIVITY": {

@@ -3,6 +3,7 @@ import type { EvaluationData, ListingData, UserSettings } from "./types";
 export type RuntimeRequest =
   | { type: "UPSERT_VIEWED"; listing: ListingData }
   | { type: "TOGGLE_CONTACTED"; listingId: string; contacted: boolean }
+  | { type: "REMOVE_LISTING"; listingId: string }
   | { type: "GET_LISTING_STATE"; listingId: string }
   | { type: "RUN_AI_EVALUATION"; listing: ListingData; contextText: string }
   | { type: "GET_RECENT_ACTIVITY" }

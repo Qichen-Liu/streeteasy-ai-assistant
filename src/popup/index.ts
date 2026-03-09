@@ -111,7 +111,10 @@ function renderItems() {
         <div class="meta">${fmtPrice(item.listing.price)} | Last viewed: ${fmtDate(item.lastViewedAt)}</div>
         <div class="chips">${chips}</div>
         ${scoreLine}
-        <div><a href="${item.listing.url}" target="_blank" rel="noreferrer">Open listing</a></div>
+        <div class="actions">
+          <a href="${item.listing.url}" target="_blank" rel="noreferrer">Open listing</a>
+          <button class="remove-btn" data-listing-id="${item.listing.listingId}" data-address="${item.listing.address}">Remove</button>
+        </div>
       </div>`;
     })
     .join("");
@@ -137,5 +140,38 @@ async function load() {
 
 filterEl.addEventListener("change", renderItems);
 sortEl.addEventListener("change", renderItems);
+listEl.addEventListener("click", (event) => {
+  const target = event.target as HTMLElement | null;
+  if (!target || !target.classList.contains("remove-btn")) {
+    return;
+  }
+
+  const listingId = target.getAttribute("data-listing-id");
+  const address = target.getAttribute("data-address") || "this listing";
+  if (!listingId) {
+    return;
+  }
+
+  const ok = window.confirm(`Remove ${address} from tracked listings?`);
+  if (!ok) {
+    return;
+  }
+
+  void (async () => {
+    const response = (await chrome.runtime.sendMessage({
+      type: "REMOVE_LISTING",
+      listingId
+    })) as { ok: boolean; error?: string };
+
+    if (!response.ok) {
+      listEl.className = "error";
+      listEl.textContent = response.error || "Failed to remove listing.";
+      return;
+    }
+
+    allItems = allItems.filter((item) => item.listing.listingId !== listingId);
+    renderItems();
+  })();
+});
 
 void load();
