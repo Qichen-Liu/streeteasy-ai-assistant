@@ -26,6 +26,7 @@ const commonConfig = {
 await cp("src/manifest.json", "dist/manifest.json");
 await cp("src/popup/index.html", "dist/popup.html");
 await cp("src/options/index.html", "dist/options.html");
+await cp("src/assets", "dist/assets", { recursive: true });
 
 if (watch) {
   const ctx = await context(commonConfig);

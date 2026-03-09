@@ -13,6 +13,12 @@
     "service_worker": "background.js",
     "type": "module"
   },
+  "icons": {
+    "16": "assets/icons/icon-16.png",
+    "32": "assets/icons/icon-32.png",
+    "48": "assets/icons/icon-48.png",
+    "128": "assets/icons/icon-128.png"
+  },
   "content_scripts": [
     {
       "matches": ["https://streeteasy.com/*", "https://www.streeteasy.com/*"],
@@ -22,6 +28,11 @@
   ],
   "action": {
     "default_title": "StreetEasy AI Assistant",
+    "default_icon": {
+      "16": "assets/icons/icon-16.png",
+      "32": "assets/icons/icon-32.png",
+      "48": "assets/icons/icon-48.png"
+    },
     "default_popup": "popup.html"
   },
   "options_page": "options.html"
