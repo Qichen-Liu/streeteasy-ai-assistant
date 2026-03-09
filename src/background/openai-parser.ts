@@ -8,7 +8,18 @@ function isConfidence(value: unknown): value is Confidence {
 
 function asStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
-  return value.filter((item): item is string => typeof item === "string").slice(0, 10);
+  return value
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => normalizeRiskFlag(item))
+    .filter(Boolean)
+    .slice(0, 10);
+}
+
+function normalizeRiskFlag(value: string): string {
+  return value
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function asScore(value: unknown): number {

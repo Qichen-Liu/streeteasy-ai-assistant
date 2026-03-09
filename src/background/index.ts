@@ -9,12 +9,34 @@ import type {
 } from "../shared/types";
 import type { RuntimeRequest } from "../shared/messages";
 
+const EVALUATION_PROMPT_VERSION = "v3";
+
 function createSnapshotHash(listing: ListingData): string {
-  return [listing.listingId, listing.price ?? "na", listing.beds ?? "na", listing.baths ?? "na", listing.sqft ?? "na"].join(":");
+  return [
+    EVALUATION_PROMPT_VERSION,
+    listing.listingId,
+    listing.price ?? "na",
+    listing.beds ?? "na",
+    listing.baths ?? "na",
+    listing.sqft ?? "na"
+  ].join(":");
 }
 
 function nowIso(): string {
   return new Date().toISOString();
+}
+
+function getDedupKey(listing: ListingData): string {
+  try {
+    const parsed = new URL(listing.url, "https://streeteasy.com");
+    const path = parsed.pathname.replace(/\/+$/, "").toLowerCase();
+    if (path) {
+      return `path:${path}`;
+    }
+  } catch {
+    // Fall through to listingId.
+  }
+  return `id:${listing.listingId}`;
 }
 
 async function upsertViewed(listing: ListingData) {
@@ -68,6 +90,21 @@ async function toggleContacted(listingId: string, contacted: boolean) {
   return { contacted: existing.contactedAt.length > 0, latestEvaluation: findLatestEvaluation(state, listingId) };
 }
 
+async function removeListing(listingId: string) {
+  const state = await getState();
+
+  delete state.listingsById[listingId];
+  delete state.activityById[listingId];
+
+  for (const [snapshotHash, evaluation] of Object.entries(state.evaluationsBySnapshotKey)) {
+    if (evaluation.listingId === listingId) {
+      delete state.evaluationsBySnapshotKey[snapshotHash];
+    }
+  }
+
+  await setState(state);
+}
+
 async function runAiEvaluation(listing: ListingData, contextText: string): Promise<EvaluationData> {
   const state = await getState();
   const { openaiApiKey, model, riskPriorities, reportMode } = state.settings;
@@ -82,11 +119,36 @@ async function runAiEvaluation(listing: ListingData, contextText: string): Promi
     return cached;
   }
 
-  const prompt = `You are evaluating a NYC apartment listing. Return strict JSON only.\n\nListing:\n${JSON.stringify(
+  const prompt = `Evaluate this NYC apartment listing with calibrated scoring. Return strict JSON only.
+
+Scoring rubric:
+- Use 0-100 scale with realistic center:
+  - 50 = typical/fair for neighborhood and unit type.
+  - 70+ = clearly above average.
+  - 30 or below = materially problematic.
+- Do NOT cluster scores into 0-10 unless truly extreme.
+- Price score reflects value-for-money (not absolute rent only).
+- Quality score reflects condition, layout, building quality, amenities, and livability.
+- If data is limited or ambiguous, keep scores near 40-60 and reduce confidence.
+
+Consistency rules:
+- Scores must align with summary text (no contradictions).
+- If confidence is high, evidence must be specific and strong.
+- Risk flags should be concise human-readable phrases (plain English, no underscores), actionable, and max 6 items.
+- Summary should be <= 80 words.
+
+Listing:
+${JSON.stringify(
     listing,
     null,
     2
-  )}\n\nPage context:\n${contextText.slice(0, 6000)}\n\nUser settings:\nreportMode=${reportMode}; riskPriorities=${riskPriorities.join(",")}`;
+  )}
+
+Page context:
+${contextText.slice(0, 6000)}
+
+User settings:
+reportMode=${reportMode}; riskPriorities=${riskPriorities.join(",")}`;
 
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
@@ -100,7 +162,7 @@ async function runAiEvaluation(listing: ListingData, contextText: string): Promi
         {
           role: "system",
           content:
-            "You output strict JSON with keys: priceScore, qualityScore, riskFlags, summary, confidence, evidence. confidence must be low|medium|high."
+            "You are a conservative NYC rental analyst. Output strict JSON with keys: priceScore, qualityScore, riskFlags, summary, confidence, evidence. confidence must be low|medium|high. Keep scoring calibrated around 50 for typical listings and avoid contradictory scoring vs narrative."
         },
         {
           role: "user",
@@ -120,9 +182,9 @@ async function runAiEvaluation(listing: ListingData, contextText: string): Promi
               riskFlags: {
                 type: "array",
                 items: { type: "string" },
-                maxItems: 10
+                maxItems: 6
               },
-              summary: { type: "string", maxLength: 1200 },
+              summary: { type: "string", maxLength: 500 },
               confidence: { type: "string", enum: ["low", "medium", "high"] },
               evidence: {
                 type: "object",
@@ -176,14 +238,32 @@ async function runAiEvaluation(listing: ListingData, contextText: string): Promi
 
 async function getRecentActivity() {
   const state = await getState();
-  const listings = Object.values(state.listingsById);
+  const dedupedByPath = new Map<string, ListingData>();
+  for (const listing of Object.values(state.listingsById)) {
+    const key = getDedupKey(listing);
+    const existing = dedupedByPath.get(key);
+    if (!existing || existing.lastSeenAt.localeCompare(listing.lastSeenAt) < 0) {
+      dedupedByPath.set(key, listing);
+    }
+  }
+
+  const listings = Array.from(dedupedByPath.values());
   listings.sort((a, b) => b.lastSeenAt.localeCompare(a.lastSeenAt));
   return listings.slice(0, 50).map((listing) => {
     const activity = state.activityById[listing.listingId];
+    const latestEvaluation = findLatestEvaluation(state, listing.listingId);
     return {
       listing,
       contacted: Boolean(activity?.contactedAt?.length),
-      lastViewedAt: activity?.viewedAt?.at(-1) || null
+      lastViewedAt: activity?.viewedAt?.at(-1) || null,
+      latestEvaluation: latestEvaluation
+        ? {
+            evaluatedAt: latestEvaluation.evaluatedAt,
+            priceScore: latestEvaluation.priceScore,
+            qualityScore: latestEvaluation.qualityScore,
+            confidence: latestEvaluation.confidence
+          }
+        : null
     };
   });
 }
@@ -230,6 +310,11 @@ chrome.runtime.onMessage.addListener((request: RuntimeRequest, _sender, sendResp
       case "RUN_AI_EVALUATION": {
         const payload = await runAiEvaluation(request.listing, request.contextText);
         sendResponse({ ok: true, payload });
+        break;
+      }
+      case "REMOVE_LISTING": {
+        await removeListing(request.listingId);
+        sendResponse({ ok: true });
         break;
       }
       case "GET_RECENT_ACTIVITY": {
