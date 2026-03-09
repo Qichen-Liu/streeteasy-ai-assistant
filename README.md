@@ -42,3 +42,7 @@ Chrome extension (Manifest V3) to track StreetEasy listings you've viewed/contac
 - Add your OpenAI API key in extension options.
 - The scaffold stores settings in `chrome.storage.local`.
 - Never commit real keys to git.
+
+## QA and Release Docs
+- E2E checklist: `docs/e2e-checklist.md`
+- Packaging guide: `docs/release-packaging.md`
