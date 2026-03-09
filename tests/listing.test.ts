@@ -1,7 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { isLikelyListingPath, parseListingIdFromPath, parseNumber } from "../src/shared/listing";
+import {
+  isLikelyListingPath,
+  parseListingIdFromPath,
+  parseListingIdFromUrl,
+  parseNumber
+} from "../src/shared/listing";
 
 test("isLikelyListingPath detects listing routes", () => {
   assert.equal(isLikelyListingPath("/rental/12345"), true);
@@ -14,6 +19,12 @@ test("parseListingIdFromPath extracts ids robustly", () => {
   assert.equal(parseListingIdFromPath("/rental/12345"), "12345");
   assert.equal(parseListingIdFromPath("/some/path/999999"), "999999");
   assert.equal(parseListingIdFromPath("/rental/no-id"), null);
+});
+
+test("parseListingIdFromUrl checks path and query candidates", () => {
+  assert.equal(parseListingIdFromUrl("https://streeteasy.com/rental/7654321"), "7654321");
+  assert.equal(parseListingIdFromUrl("https://streeteasy.com/foo?listingId=888888"), "888888");
+  assert.equal(parseListingIdFromUrl("https://streeteasy.com/foo?x=1"), null);
 });
 
 test("parseNumber handles currency and decimals", () => {
