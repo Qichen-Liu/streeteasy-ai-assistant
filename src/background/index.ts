@@ -180,10 +180,19 @@ async function getRecentActivity() {
   listings.sort((a, b) => b.lastSeenAt.localeCompare(a.lastSeenAt));
   return listings.slice(0, 50).map((listing) => {
     const activity = state.activityById[listing.listingId];
+    const latestEvaluation = findLatestEvaluation(state, listing.listingId);
     return {
       listing,
       contacted: Boolean(activity?.contactedAt?.length),
-      lastViewedAt: activity?.viewedAt?.at(-1) || null
+      lastViewedAt: activity?.viewedAt?.at(-1) || null,
+      latestEvaluation: latestEvaluation
+        ? {
+            evaluatedAt: latestEvaluation.evaluatedAt,
+            priceScore: latestEvaluation.priceScore,
+            qualityScore: latestEvaluation.qualityScore,
+            confidence: latestEvaluation.confidence
+          }
+        : null
     };
   });
 }

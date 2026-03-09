@@ -5,18 +5,154 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>StreetEasy AI Assistant</title>
     <style>
-      body { font-family: Arial, sans-serif; margin: 0; min-width: 320px; background: #f8fafc; color: #0f172a; }
-      main { padding: 12px; }
-      h1 { margin: 0 0 12px; font-size: 16px; }
-      .item { background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px; margin-bottom: 8px; }
-      .meta { font-size: 12px; color: #475569; }
-      a { color: #2563eb; text-decoration: none; }
+      :root {
+        --bg: #f8fafc;
+        --ink: #0f172a;
+        --muted: #475569;
+        --line: #e2e8f0;
+        --card: #ffffff;
+        --accent: #2563eb;
+        --ok: #047857;
+        --warn: #9a3412;
+      }
+
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        min-width: 360px;
+        max-width: 420px;
+        background: var(--bg);
+        color: var(--ink);
+      }
+
+      main {
+        padding: 12px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 16px;
+      }
+
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+
+      .toolbar {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+
+      select {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 6px;
+        background: #fff;
+      }
+
+      .item {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 10px;
+        margin-bottom: 8px;
+      }
+
+      .title {
+        font-weight: 700;
+        margin-bottom: 4px;
+      }
+
+      .meta {
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin: 8px 0;
+      }
+
+      .chip {
+        border-radius: 999px;
+        padding: 2px 8px;
+        font-size: 11px;
+        line-height: 1.4;
+      }
+
+      .chip-contacted {
+        background: #dcfce7;
+        color: #065f46;
+      }
+
+      .chip-viewed {
+        background: #e2e8f0;
+        color: #334155;
+      }
+
+      .chip-eval {
+        background: #fef3c7;
+        color: #92400e;
+      }
+
+      .scores {
+        font-size: 12px;
+        color: var(--muted);
+        margin-bottom: 6px;
+      }
+
+      a {
+        color: var(--accent);
+        text-decoration: none;
+        font-size: 12px;
+      }
+
+      .empty,
+      .error,
+      .loading {
+        font-size: 13px;
+        color: var(--muted);
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 10px;
+      }
+
+      .error {
+        color: #991b1b;
+        border-color: #fecaca;
+        background: #fef2f2;
+      }
     </style>
   </head>
   <body>
     <main>
-      <h1>Recent Listings</h1>
-      <div id="list">Loading...</div>
+      <div class="header">
+        <h1>Recent Listings</h1>
+      </div>
+      <div class="toolbar">
+        <select id="filterSelect">
+          <option value="all">All</option>
+          <option value="contacted">Contacted</option>
+          <option value="viewed">Viewed only</option>
+          <option value="evaluated">Evaluated</option>
+        </select>
+        <select id="sortSelect">
+          <option value="lastViewed">Sort: Last viewed</option>
+          <option value="priceAsc">Sort: Price low-high</option>
+          <option value="priceDesc">Sort: Price high-low</option>
+          <option value="bestScore">Sort: Best AI score</option>
+        </select>
+      </div>
+      <div id="list" class="loading">Loading...</div>
     </main>
     <script type="module" src="./popup.js"></script>
   </body>
