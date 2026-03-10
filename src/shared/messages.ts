@@ -4,6 +4,7 @@ export type RuntimeRequest =
   | { type: "UPSERT_VIEWED"; listing: ListingData }
   | { type: "TOGGLE_CONTACTED"; listingId: string; contacted: boolean }
   | { type: "REMOVE_LISTING"; listingId: string }
+  | { type: "REMOVE_LISTINGS"; listingIds: string[] }
   | { type: "CLEAR_TRACKED_DATA" }
   | { type: "GET_LISTING_STATE"; listingId: string }
   | { type: "RUN_AI_EVALUATION"; listing: ListingData; contextText: string }

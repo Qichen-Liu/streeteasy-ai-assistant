@@ -4,7 +4,8 @@ import {
   fallbackListingKeyFromUrl,
   isLikelyListingPath,
   parseListingIdFromUrl,
-  readPageContext
+  readPageContext,
+  stableListingPathKeyFromUrl
 } from "../shared/listing";
 
 type ListingStatePayload = {
@@ -20,6 +21,7 @@ type TrackedSets = {
 };
 
 const ROOT_ID = "se-ai-assistant-root";
+const COLLAPSED_AI_ID = "se-ai-assistant-collapsed";
 const RESULTS_TOGGLE_ID = "se-results-filter-root";
 const RESULTS_FILTER_STORAGE_KEY = "streeteasyResultsFilterMode";
 const RESULTS_FILTER_POSITION_STORAGE_KEY = "streeteasyResultsFilterPosition";
@@ -33,6 +35,8 @@ let isBusy = false;
 let currentError = "";
 let resultsFilterMode: ResultsFilterMode = "show_all";
 let resultsObserver: MutationObserver | null = null;
+let aiPanelCollapsed = false;
+let aiPanelPosition: { left: number; top: number } | null = null;
 
 type ResultsFilterPosition = {
   left: number;
@@ -53,17 +57,18 @@ function createRoot(): HTMLDivElement {
   root.style.right = "16px";
   root.style.bottom = "16px";
   root.style.zIndex = "2147483647";
-  root.style.maxWidth = "390px";
+  root.style.maxWidth = "420px";
   root.style.width = "calc(100vw - 32px)";
-  root.style.background = "#ffffff";
-  root.style.color = "#0f172a";
-  root.style.border = "1px solid #cbd5e1";
-  root.style.borderRadius = "12px";
-  root.style.padding = "12px";
-  root.style.boxShadow = "0 12px 24px rgba(15, 23, 42, 0.12)";
+  root.style.background = "#f3f4f6";
+  root.style.color = "#111827";
+  root.style.border = "1px solid #e5e7eb";
+  root.style.borderRadius = "18px";
+  root.style.overflow = "hidden";
+  root.style.boxShadow = "0 20px 40px rgba(15, 23, 42, 0.18)";
   root.style.fontFamily = "Arial, Helvetica, sans-serif";
   root.style.fontSize = "13px";
   root.style.lineHeight = "1.4";
+  root.style.userSelect = "text";
   document.body.appendChild(root);
   return root;
 }
@@ -72,10 +77,128 @@ function removeRoot() {
   document.getElementById(ROOT_ID)?.remove();
 }
 
-function chip(label: string, active: boolean): string {
-  const bg = active ? "#dcfce7" : "#e2e8f0";
-  const color = active ? "#166534" : "#334155";
-  return `<span style="background:${bg};color:${color};padding:2px 8px;border-radius:999px;font-size:12px;">${label}</span>`;
+function createCollapsedAiButton(): HTMLButtonElement {
+  const existing = document.getElementById(COLLAPSED_AI_ID);
+  if (existing) return existing as HTMLButtonElement;
+
+  const button = document.createElement("button");
+  button.id = COLLAPSED_AI_ID;
+  button.type = "button";
+  button.style.position = "fixed";
+  button.style.right = "16px";
+  button.style.bottom = "16px";
+  button.style.zIndex = "2147483647";
+  button.style.height = "60px";
+  button.style.minWidth = "156px";
+  button.style.border = "1px solid #0b0f19";
+  button.style.borderRadius = "999px";
+  button.style.background = "#111318";
+  button.style.boxShadow = "0 16px 30px rgba(15, 23, 42, 0.22)";
+  button.style.cursor = "pointer";
+  button.style.display = "flex";
+  button.style.alignItems = "center";
+  button.style.justifyContent = "space-between";
+  button.style.gap = "10px";
+  button.style.padding = "0 16px";
+
+  const icon = document.createElement("img");
+  icon.src = chrome.runtime.getURL("assets/icons/icon.svg");
+  icon.alt = "StreetEasy AI";
+  icon.style.width = "23px";
+  icon.style.height = "23px";
+  icon.style.flex = "0 0 auto";
+  const label = document.createElement("span");
+  label.textContent = "Assistant";
+  label.style.color = "#f8fafc";
+  label.style.fontWeight = "700";
+  label.style.fontSize = "18px";
+  label.style.letterSpacing = "0.2px";
+  const chevron = document.createElement("span");
+  chevron.textContent = "⌃";
+  chevron.style.color = "#f8fafc";
+  chevron.style.fontSize = "18px";
+  chevron.style.lineHeight = "1";
+
+  button.appendChild(icon);
+  button.appendChild(label);
+  button.appendChild(chevron);
+
+  button.addEventListener("click", () => {
+    aiPanelCollapsed = false;
+    aiPanelPosition = null;
+    button.remove();
+    renderListingCard();
+  });
+
+  document.body.appendChild(button);
+  return button;
+}
+
+function removeCollapsedAiButton() {
+  document.getElementById(COLLAPSED_AI_ID)?.remove();
+}
+
+function applyAiPanelPosition(root: HTMLDivElement) {
+  if (!aiPanelPosition) {
+    root.style.right = "16px";
+    root.style.bottom = "16px";
+    root.style.left = "auto";
+    root.style.top = "auto";
+    return;
+  }
+
+  root.style.left = `${aiPanelPosition.left}px`;
+  root.style.top = `${aiPanelPosition.top}px`;
+  root.style.right = "auto";
+  root.style.bottom = "auto";
+}
+
+function makeAiPanelDraggable(root: HTMLDivElement) {
+  const handle = root.querySelector<HTMLElement>("#se-ai-drag-handle");
+  if (!handle) return;
+
+  let dragState:
+    | {
+        startX: number;
+        startY: number;
+        startLeft: number;
+        startTop: number;
+      }
+    | null = null;
+
+  handle.addEventListener("mousedown", (event: MouseEvent) => {
+    if (event.button !== 0) return;
+    const rect = root.getBoundingClientRect();
+    dragState = {
+      startX: event.clientX,
+      startY: event.clientY,
+      startLeft: rect.left,
+      startTop: rect.top
+    };
+    root.style.left = `${rect.left}px`;
+    root.style.top = `${rect.top}px`;
+    root.style.right = "auto";
+    root.style.bottom = "auto";
+    event.preventDefault();
+  });
+
+  window.addEventListener("mousemove", (event: MouseEvent) => {
+    if (!dragState) return;
+    const rect = root.getBoundingClientRect();
+    const maxLeft = Math.max(0, window.innerWidth - rect.width);
+    const maxTop = Math.max(0, window.innerHeight - rect.height);
+    const nextLeft = clamp(dragState.startLeft + (event.clientX - dragState.startX), 0, maxLeft);
+    const nextTop = clamp(dragState.startTop + (event.clientY - dragState.startY), 0, maxTop);
+    root.style.left = `${nextLeft}px`;
+    root.style.top = `${nextTop}px`;
+  });
+
+  window.addEventListener("mouseup", () => {
+    if (!dragState) return;
+    dragState = null;
+    const rect = root.getBoundingClientRect();
+    aiPanelPosition = { left: Math.round(rect.left), top: Math.round(rect.top) };
+  });
 }
 
 function formatEvalTime(iso?: string): string {
@@ -87,47 +210,86 @@ function formatEvalTime(iso?: string): string {
 
 function renderEvaluationSection(evaluation: EvaluationData | null): string {
   if (!evaluation) {
-    return "<div style='margin-top:8px;color:#64748b;'>No AI evaluation yet.</div>";
+    return "<div style='margin-top:10px;color:#6b7280;font-size:15px;'>No AI evaluation yet.</div>";
   }
 
   const risks = evaluation.riskFlags.length ? evaluation.riskFlags.slice(0, 4).join("; ") : "None";
 
-  return `<div style="margin-top:8px;border-top:1px solid #e2e8f0;padding-top:8px;">
-    <div style="display:flex;gap:12px;flex-wrap:wrap;">
-      <div><strong>Price:</strong> ${evaluation.priceScore}/100</div>
-      <div><strong>Quality:</strong> ${evaluation.qualityScore}/100</div>
-      <div><strong>Confidence:</strong> ${evaluation.confidence}</div>
+  return `<div style="margin-top:10px;padding:10px;border:1px solid #d1d5db;border-radius:12px;background:#ffffff;">
+    <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:#374151;">
+      <div><strong>Price</strong> ${evaluation.priceScore}/100</div>
+      <div><strong>Quality</strong> ${evaluation.qualityScore}/100</div>
+      <div><strong>Confidence</strong> ${evaluation.confidence}</div>
     </div>
-    <div style="margin-top:6px;"><strong>Summary:</strong> ${evaluation.summary || "n/a"}</div>
-    <div style="margin-top:6px;"><strong>Risks:</strong> ${risks}</div>
-    <div style="margin-top:6px;color:#64748b;font-size:12px;">Last evaluated: ${formatEvalTime(evaluation.evaluatedAt)}</div>
+    <div style="margin-top:7px;font-size:13px;"><strong>Summary:</strong> ${evaluation.summary || "n/a"}</div>
+    <div style="margin-top:6px;font-size:13px;"><strong>Risks:</strong> ${risks}</div>
+    <div style="margin-top:7px;color:#64748b;font-size:11px;">Last evaluated: ${formatEvalTime(evaluation.evaluatedAt)}</div>
   </div>`;
 }
 
 function renderListingCard() {
   if (!currentListing) {
     removeRoot();
+    removeCollapsedAiButton();
     return;
   }
 
+  if (aiPanelCollapsed) {
+    removeRoot();
+    createCollapsedAiButton();
+    return;
+  }
+
+  removeCollapsedAiButton();
+
   const root = createRoot();
+  applyAiPanelPosition(root);
 
   root.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
-      <strong style="font-size:16px;">StreetEasy AI</strong>
-      <div style="display:flex;gap:6px;">${chip("Viewed", true)}${chip("Contacted", currentState.contacted)}</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;background:#111318;padding:14px 16px;">
+      <div id="se-ai-drag-handle" style="display:flex;align-items:center;gap:10px;cursor:move;flex:1;min-width:0;user-select:none;">
+        <img src="${chrome.runtime.getURL("assets/icons/icon.svg")}" alt="StreetEasy AI" style="width:40px;height:40px;display:block;flex:0 0 auto;" />
+        <strong style="font-size:16px;letter-spacing:0.2px;color:#f8fafc;">StreetEasy Assistant</strong>
+      </div>
+      <button id="se-collapse-ai" type="button" title="Minimize" style="border:0;border-radius:8px;background:transparent;padding:2px 6px;cursor:pointer;font-size:24px;line-height:1;color:#f8fafc;">✕</button>
     </div>
-    <div style="margin-top:6px;color:#334155;">${currentListing.address}</div>
-    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
-      <button id="se-toggle-contacted" ${isBusy ? "disabled" : ""} style="border:0;border-radius:8px;padding:6px 10px;cursor:pointer;background:#2563eb;color:white;opacity:${isBusy ? "0.6" : "1"};">${currentState.contacted ? "Unmark Contacted" : "Mark Contacted"}</button>
-      <button id="se-evaluate" ${isBusy ? "disabled" : ""} style="border:0;border-radius:8px;padding:6px 10px;cursor:pointer;background:#f59e0b;color:#111827;opacity:${isBusy ? "0.6" : "1"};">${isBusy ? "Evaluating..." : "AI Evaluate"}</button>
+    <div style="padding:16px;">
+      <div style="font-size:18px;font-weight:800;line-height:1.25;color:#111827;">${currentListing.address}</div>
+      <div style="margin-top:6px;color:#6b7280;font-size:17px;">$ ${typeof currentListing.price === "number" ? currentListing.price.toLocaleString() : "Price n/a"}</div>
+      <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div style="border:1px solid #e5e7eb;border-radius:16px;padding:12px;background:#f3f4f6;">
+          <div style="font-size:11px;color:#6b7280;letter-spacing:1px;font-weight:700;">STATUS</div>
+          <div style="margin-top:4px;display:flex;align-items:center;gap:8px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M2 12C3.7 8.4 7.4 6 12 6C16.6 6 20.3 8.4 22 12C20.3 15.6 16.6 18 12 18C7.4 18 3.7 15.6 2 12Z" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="12" cy="12" r="3" stroke="#10b981" stroke-width="2"/>
+            </svg>
+            <div style="font-size:15px;font-weight:700;color:#111827;">Viewed</div>
+          </div>
+        </div>
+        <div style="border:1px solid #e5e7eb;border-radius:16px;padding:12px;background:#f3f4f6;">
+          <div style="font-size:11px;color:#6b7280;letter-spacing:1px;font-weight:700;">CONTACT</div>
+          <div style="margin-top:4px;display:flex;align-items:center;gap:8px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M21 14C21 15.1 20.1 16 19 16H8L4 20V5C4 3.9 4.9 3 6 3H19C20.1 3 21 3.9 21 5V14Z" stroke="${currentState.contacted ? "#10b981" : "#9ca3af"}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <div style="font-size:15px;font-weight:700;color:#111827;">${currentState.contacted ? "Contacted" : "Pending"}</div>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:12px;display:flex;gap:10px;flex-direction:column;">
+        <button id="se-toggle-contacted" ${isBusy ? "disabled" : ""} style="border:0;border-radius:16px;padding:11px 14px;cursor:pointer;background:#e5e7eb;color:#111827;font-size:17px;font-weight:700;opacity:${isBusy ? "0.6" : "1"};">${currentState.contacted ? "Unmark Contacted" : "Mark Contacted"}</button>
+        <button id="se-evaluate" ${isBusy ? "disabled" : ""} style="border:0;border-radius:16px;padding:11px 14px;cursor:pointer;background:#10b981;color:#f8fafc;font-size:17px;font-weight:800;opacity:${isBusy ? "0.6" : "1"};">${isBusy ? "Evaluating..." : "AI Evaluate"}</button>
+      </div>
+      ${currentError ? `<div style='margin-top:10px;color:#b91c1c;font-size:13px;'>${currentError}</div>` : ""}
+      ${renderEvaluationSection(currentState.latestEvaluation)}
     </div>
-    ${currentError ? `<div style='margin-top:8px;color:#b91c1c;'>${currentError}</div>` : ""}
-    ${renderEvaluationSection(currentState.latestEvaluation)}
   `;
 
   const contactBtn = root.querySelector<HTMLButtonElement>("#se-toggle-contacted");
   const evalBtn = root.querySelector<HTMLButtonElement>("#se-evaluate");
+  const collapseBtn = root.querySelector<HTMLButtonElement>("#se-collapse-ai");
+  makeAiPanelDraggable(root);
 
   contactBtn?.addEventListener("click", async () => {
     if (!currentListing || isBusy) return;
@@ -165,6 +327,12 @@ function renderListingCard() {
       renderListingCard();
     }
   });
+
+  collapseBtn?.addEventListener("click", () => {
+    aiPanelCollapsed = true;
+    aiPanelPosition = null;
+    renderListingCard();
+  });
 }
 
 async function sendMessage<T>(message: unknown): Promise<T> {
@@ -185,12 +353,8 @@ function listingKeysFromUrl(href: string): string[] {
   const byFallback = fallbackListingKeyFromUrl(href);
   if (byFallback) keys.add(byFallback);
 
-  try {
-    const parsed = new URL(href, window.location.origin);
-    keys.add(`path:${parsed.pathname.replace(/\/+$/, "").toLowerCase()}`);
-  } catch {
-    // Ignore malformed URLs.
-  }
+  const byStablePath = stableListingPathKeyFromUrl(href);
+  if (byStablePath) keys.add(byStablePath);
 
   return Array.from(keys);
 }
@@ -238,6 +402,9 @@ function createResultsToggleRoot(): HTMLDivElement {
       <option value="hide_viewed_only">Hide viewed only</option>
       <option value="hide_viewed_and_contacted">Hide viewed + contacted</option>
     </select>
+    <div id="se-results-empty-note" style="display:none;margin-top:6px;padding:6px;border-radius:6px;background:#eff6ff;color:#1e3a8a;border:1px solid #bfdbfe;line-height:1.35;">
+      No non-viewed listings available on this page. Use the page index to switch pages.
+    </div>
   `;
   document.body.appendChild(root);
 
@@ -344,14 +511,21 @@ function getResultCardElement(anchor: HTMLAnchorElement): HTMLElement | null {
     anchor.closest<HTMLElement>("[class*='listingCard']");
 
   const listingLinkSelector = "a[href*='/rental/'], a[href*='/sale/'], a[href*='/building/']";
+  const paginationSelector =
+    "a[rel='next'], a[rel='prev'], a[href*='page='], [aria-label*='next' i], [aria-label*='previous' i], [aria-label*='page' i]";
 
   const isSafeCardContainer = (el: HTMLElement): boolean => {
-    if (el.id === RESULTS_TOGGLE_ID || el.contains(document.getElementById(RESULTS_TOGGLE_ID))) {
+    const toggleRoot = document.getElementById(RESULTS_TOGGLE_ID);
+    if (el.id === RESULTS_TOGGLE_ID || (toggleRoot && el.contains(toggleRoot))) {
       return false;
     }
 
     const listingLinks = el.querySelectorAll(listingLinkSelector).length;
-    if (listingLinks < 1 || listingLinks > 8) {
+    if (listingLinks < 1 || listingLinks > 4) {
+      return false;
+    }
+
+    if (el.querySelector(paginationSelector)) {
       return false;
     }
 
@@ -434,6 +608,7 @@ async function applyResultsFilter() {
   const root = createResultsToggleRoot();
   const select = root.querySelector<HTMLSelectElement>("#se-results-mode");
   const count = root.querySelector<HTMLSpanElement>("#se-results-count");
+  const emptyNote = root.querySelector<HTMLDivElement>("#se-results-empty-note");
   if (select) select.value = resultsFilterMode;
 
   resetHiddenResultCards();
@@ -449,9 +624,19 @@ async function applyResultsFilter() {
     processed.add(card);
     total += 1;
 
-    const keys = listingKeysFromUrl(anchor.href);
-    const isViewed = keys.some((key) => tracked.viewed.has(key));
-    const isContacted = keys.some((key) => tracked.contacted.has(key));
+    const cardAnchors = Array.from(card.querySelectorAll<HTMLAnchorElement>("a[href]"));
+    const keys = new Set<string>();
+    for (const link of cardAnchors) {
+      for (const key of listingKeysFromUrl(link.href)) {
+        keys.add(key);
+      }
+    }
+    for (const key of listingKeysFromUrl(anchor.href)) {
+      keys.add(key);
+    }
+
+    const isViewed = Array.from(keys).some((key) => tracked.viewed.has(key));
+    const isContacted = Array.from(keys).some((key) => tracked.contacted.has(key));
 
     let shouldHide = false;
     if (resultsFilterMode === "hide_viewed_only") {
@@ -469,6 +654,11 @@ async function applyResultsFilter() {
 
   if (count) {
     count.textContent = `${modeLabel(resultsFilterMode)}: ${hidden} hidden / ${total}`;
+  }
+
+  if (emptyNote) {
+    const fullyHidden = resultsFilterMode !== "show_all" && total > 0 && hidden >= total;
+    emptyNote.style.display = fullyHidden ? "block" : "none";
   }
 }
 
@@ -508,6 +698,7 @@ async function syncPageState() {
     trackedListingId = "";
     currentError = "";
     renderListingCard();
+    removeCollapsedAiButton();
     ensureResultsObserver();
     await applyResultsFilter();
     return;

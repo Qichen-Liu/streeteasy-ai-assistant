@@ -56,7 +56,9 @@ export function parseListingIdFromUrl(urlValue: string): string | null {
   return null;
 }
 
-export function fallbackListingKeyFromUrl(urlValue: string): string | null {
+const IDENTITY_QUERY_KEYS = ["listing", "listingId", "id", "rental", "sale", "unit", "unitId", "apt", "apartment"];
+
+export function stableListingPathKeyFromUrl(urlValue: string): string | null {
   try {
     const parsedUrl = new URL(urlValue, "https://streeteasy.com");
     if (!isLikelyListingPath(parsedUrl.pathname)) {
@@ -64,11 +66,21 @@ export function fallbackListingKeyFromUrl(urlValue: string): string | null {
     }
 
     const normalizedPath = parsedUrl.pathname.replace(/\/+$/, "").toLowerCase();
-    // Query/hash params vary by navigation context and should not split the same listing key.
-    return `url:${normalizedPath}`;
+    const normalizedParams = IDENTITY_QUERY_KEYS
+      .map((key) => [key, parsedUrl.searchParams.get(key)] as const)
+      .filter((entry): entry is [string, string] => Boolean(entry[1]))
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([k, v]) => `${k}=${encodeURIComponent(v)}`);
+
+    const normalizedQuery = normalizedParams.length ? `?${normalizedParams.join("&")}` : "";
+    return `url:${normalizedPath}${normalizedQuery}`;
   } catch {
     return null;
   }
+}
+
+export function fallbackListingKeyFromUrl(urlValue: string): string | null {
+  return stableListingPathKeyFromUrl(urlValue);
 }
 
 export function parseListingIdFromDocument(doc: Document, url: string): string | null {
