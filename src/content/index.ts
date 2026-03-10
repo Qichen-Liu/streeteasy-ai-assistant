@@ -57,14 +57,14 @@ function createRoot(): HTMLDivElement {
   root.style.right = "16px";
   root.style.bottom = "16px";
   root.style.zIndex = "2147483647";
-  root.style.maxWidth = "390px";
+  root.style.maxWidth = "420px";
   root.style.width = "calc(100vw - 32px)";
   root.style.background = "#ffffff";
   root.style.color = "#0f172a";
-  root.style.border = "1px solid #cbd5e1";
-  root.style.borderRadius = "12px";
-  root.style.padding = "12px";
-  root.style.boxShadow = "0 12px 24px rgba(15, 23, 42, 0.12)";
+  root.style.border = "1px solid #dbe4ee";
+  root.style.borderRadius = "14px";
+  root.style.padding = "14px";
+  root.style.boxShadow = "0 14px 30px rgba(15, 23, 42, 0.14)";
   root.style.fontFamily = "Arial, Helvetica, sans-serif";
   root.style.fontSize = "13px";
   root.style.lineHeight = "1.4";
@@ -205,10 +205,10 @@ function renderEvaluationSection(evaluation: EvaluationData | null): string {
   const risks = evaluation.riskFlags.length ? evaluation.riskFlags.slice(0, 4).join("; ") : "None";
 
   return `<div style="margin-top:8px;border-top:1px solid #e2e8f0;padding-top:8px;">
-    <div style="display:flex;gap:12px;flex-wrap:wrap;">
-      <div><strong>Price:</strong> ${evaluation.priceScore}/100</div>
-      <div><strong>Quality:</strong> ${evaluation.qualityScore}/100</div>
-      <div><strong>Confidence:</strong> ${evaluation.confidence}</div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:12px;">
+      <div><strong>Price</strong> ${evaluation.priceScore}/100</div>
+      <div><strong>Quality</strong> ${evaluation.qualityScore}/100</div>
+      <div><strong>Confidence</strong> ${evaluation.confidence}</div>
     </div>
     <div style="margin-top:6px;"><strong>Summary:</strong> ${evaluation.summary || "n/a"}</div>
     <div style="margin-top:6px;"><strong>Risks:</strong> ${risks}</div>
@@ -237,15 +237,16 @@ function renderListingCard() {
   root.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
       <div id="se-ai-drag-handle" style="display:flex;align-items:center;gap:8px;cursor:move;flex:1;min-width:0;">
-        <strong style="font-size:16px;">StreetEasy AI</strong>
+        <span style="color:#94a3b8;font-size:13px;line-height:1;">⋮⋮</span>
+        <strong style="font-size:16px;letter-spacing:0.2px;">StreetEasy AI</strong>
       </div>
-      <button id="se-collapse-ai" type="button" style="border:1px solid #cbd5e1;border-radius:6px;background:#fff;padding:2px 8px;cursor:pointer;">_</button>
       <div style="display:flex;gap:6px;">${chip("Viewed", true)}${chip("Contacted", currentState.contacted)}</div>
+      <button id="se-collapse-ai" type="button" title="Minimize" style="border:1px solid #cbd5e1;border-radius:7px;background:#fff;padding:2px 8px;cursor:pointer;font-size:14px;line-height:1;">−</button>
     </div>
-    <div style="margin-top:6px;color:#334155;">${currentListing.address}</div>
+    <div style="margin-top:7px;color:#334155;font-size:15px;">${currentListing.address}</div>
     <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
-      <button id="se-toggle-contacted" ${isBusy ? "disabled" : ""} style="border:0;border-radius:8px;padding:6px 10px;cursor:pointer;background:#2563eb;color:white;opacity:${isBusy ? "0.6" : "1"};">${currentState.contacted ? "Unmark Contacted" : "Mark Contacted"}</button>
-      <button id="se-evaluate" ${isBusy ? "disabled" : ""} style="border:0;border-radius:8px;padding:6px 10px;cursor:pointer;background:#f59e0b;color:#111827;opacity:${isBusy ? "0.6" : "1"};">${isBusy ? "Evaluating..." : "AI Evaluate"}</button>
+      <button id="se-toggle-contacted" ${isBusy ? "disabled" : ""} style="border:0;border-radius:9px;padding:7px 12px;cursor:pointer;background:#2563eb;color:white;opacity:${isBusy ? "0.6" : "1"};">${currentState.contacted ? "Unmark Contacted" : "Mark Contacted"}</button>
+      <button id="se-evaluate" ${isBusy ? "disabled" : ""} style="border:0;border-radius:9px;padding:7px 12px;cursor:pointer;background:#f59e0b;color:#111827;font-weight:600;opacity:${isBusy ? "0.6" : "1"};">${isBusy ? "Evaluating..." : "AI Evaluate"}</button>
     </div>
     ${currentError ? `<div style='margin-top:8px;color:#b91c1c;'>${currentError}</div>` : ""}
     ${renderEvaluationSection(currentState.latestEvaluation)}
