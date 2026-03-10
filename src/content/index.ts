@@ -238,6 +238,9 @@ function createResultsToggleRoot(): HTMLDivElement {
       <option value="hide_viewed_only">Hide viewed only</option>
       <option value="hide_viewed_and_contacted">Hide viewed + contacted</option>
     </select>
+    <div id="se-results-empty-note" style="display:none;margin-top:6px;padding:6px;border-radius:6px;background:#eff6ff;color:#1e3a8a;border:1px solid #bfdbfe;line-height:1.35;">
+      No non-viewed listings available on this page. Use the page index to switch pages.
+    </div>
   `;
   document.body.appendChild(root);
 
@@ -434,6 +437,7 @@ async function applyResultsFilter() {
   const root = createResultsToggleRoot();
   const select = root.querySelector<HTMLSelectElement>("#se-results-mode");
   const count = root.querySelector<HTMLSpanElement>("#se-results-count");
+  const emptyNote = root.querySelector<HTMLDivElement>("#se-results-empty-note");
   if (select) select.value = resultsFilterMode;
 
   resetHiddenResultCards();
@@ -469,6 +473,11 @@ async function applyResultsFilter() {
 
   if (count) {
     count.textContent = `${modeLabel(resultsFilterMode)}: ${hidden} hidden / ${total}`;
+  }
+
+  if (emptyNote) {
+    const fullyHidden = resultsFilterMode !== "show_all" && total > 0 && hidden >= total;
+    emptyNote.style.display = fullyHidden ? "block" : "none";
   }
 }
 
