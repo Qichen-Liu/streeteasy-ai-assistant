@@ -48,6 +48,26 @@
         margin-bottom: 10px;
       }
 
+      .bulkbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 10px;
+        padding: 8px;
+        background: #ffffff;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+      }
+
+      .bulk-select {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+
       select {
         width: 100%;
         border: 1px solid var(--line);
@@ -116,6 +136,16 @@
         gap: 10px;
       }
 
+      .item-head {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+      }
+
+      .item-checkbox {
+        margin-top: 3px;
+      }
+
       a {
         color: var(--accent);
         text-decoration: none;
@@ -130,6 +160,21 @@
         font-size: 11px;
         padding: 4px 8px;
         cursor: pointer;
+      }
+
+      .remove-selected-btn {
+        border: 1px solid #fecaca;
+        background: #fff1f2;
+        color: #9f1239;
+        border-radius: 6px;
+        font-size: 12px;
+        padding: 5px 8px;
+        cursor: pointer;
+      }
+
+      .remove-selected-btn:disabled {
+        opacity: 0.5;
+        cursor: default;
       }
 
       .empty,
@@ -168,6 +213,13 @@
           <option value="priceDesc">Sort: Price high-low</option>
           <option value="bestScore">Sort: Best AI score</option>
         </select>
+      </div>
+      <div class="bulkbar">
+        <label class="bulk-select">
+          <input id="selectAllVisible" type="checkbox" />
+          Select all visible
+        </label>
+        <button id="removeSelectedBtn" class="remove-selected-btn" disabled>Remove selected</button>
       </div>
       <div id="list" class="loading">Loading...</div>
     </main>

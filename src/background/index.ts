@@ -102,7 +102,19 @@ async function toggleContacted(listingId: string, contacted: boolean) {
 
 async function removeListing(listingId: string) {
   const state = await getStateWithRetention();
+  await removeListingFromState(state, listingId);
+  await setState(state);
+}
 
+async function removeListings(listingIds: string[]) {
+  const state = await getStateWithRetention();
+  for (const listingId of listingIds) {
+    await removeListingFromState(state, listingId);
+  }
+  await setState(state);
+}
+
+async function removeListingFromState(state: Awaited<ReturnType<typeof getStateWithRetention>>, listingId: string) {
   delete state.listingsById[listingId];
   delete state.activityById[listingId];
 
@@ -112,7 +124,6 @@ async function removeListing(listingId: string) {
     }
   }
 
-  await setState(state);
 }
 
 async function runAiEvaluation(listing: ListingData, contextText: string): Promise<EvaluationData> {
@@ -336,6 +347,11 @@ chrome.runtime.onMessage.addListener((request: RuntimeRequest, _sender, sendResp
       }
       case "REMOVE_LISTING": {
         await removeListing(request.listingId);
+        sendResponse({ ok: true });
+        break;
+      }
+      case "REMOVE_LISTINGS": {
+        await removeListings(request.listingIds);
         sendResponse({ ok: true });
         break;
       }
