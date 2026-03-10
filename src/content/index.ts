@@ -4,7 +4,8 @@ import {
   fallbackListingKeyFromUrl,
   isLikelyListingPath,
   parseListingIdFromUrl,
-  readPageContext
+  readPageContext,
+  stableListingPathKeyFromUrl
 } from "../shared/listing";
 
 type ListingStatePayload = {
@@ -185,12 +186,8 @@ function listingKeysFromUrl(href: string): string[] {
   const byFallback = fallbackListingKeyFromUrl(href);
   if (byFallback) keys.add(byFallback);
 
-  try {
-    const parsed = new URL(href, window.location.origin);
-    keys.add(`path:${parsed.pathname.replace(/\/+$/, "").toLowerCase()}`);
-  } catch {
-    // Ignore malformed URLs.
-  }
+  const byStablePath = stableListingPathKeyFromUrl(href);
+  if (byStablePath) keys.add(byStablePath);
 
   return Array.from(keys);
 }
