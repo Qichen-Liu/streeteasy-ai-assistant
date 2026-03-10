@@ -1,9 +1,11 @@
 {
   "manifest_version": 3,
   "name": "StreetEasy AI Assistant",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "Track viewed/contacted StreetEasy listings and run AI evaluation checks.",
-  "permissions": ["storage"],
+  "permissions": [
+    "storage"
+  ],
   "host_permissions": [
     "https://streeteasy.com/*",
     "https://www.streeteasy.com/*",
@@ -21,8 +23,13 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://streeteasy.com/*", "https://www.streeteasy.com/*"],
-      "js": ["content.js"],
+      "matches": [
+        "https://streeteasy.com/*",
+        "https://www.streeteasy.com/*"
+      ],
+      "js": [
+        "content.js"
+      ],
       "run_at": "document_idle"
     }
   ],
@@ -35,7 +42,10 @@
         "assets/icons/icon-48.png",
         "assets/icons/icon-128.png"
       ],
-      "matches": ["https://streeteasy.com/*", "https://www.streeteasy.com/*"]
+      "matches": [
+        "https://streeteasy.com/*",
+        "https://www.streeteasy.com/*"
+      ]
     }
   ],
   "action": {
