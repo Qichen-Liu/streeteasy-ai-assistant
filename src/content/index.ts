@@ -21,6 +21,7 @@ type TrackedSets = {
 };
 
 const ROOT_ID = "se-ai-assistant-root";
+const COLLAPSED_AI_ID = "se-ai-assistant-collapsed";
 const RESULTS_TOGGLE_ID = "se-results-filter-root";
 const RESULTS_FILTER_STORAGE_KEY = "streeteasyResultsFilterMode";
 const RESULTS_FILTER_POSITION_STORAGE_KEY = "streeteasyResultsFilterPosition";
@@ -34,6 +35,8 @@ let isBusy = false;
 let currentError = "";
 let resultsFilterMode: ResultsFilterMode = "show_all";
 let resultsObserver: MutationObserver | null = null;
+let aiPanelCollapsed = false;
+let aiPanelPosition: { left: number; top: number } | null = null;
 
 type ResultsFilterPosition = {
   left: number;
@@ -65,12 +68,120 @@ function createRoot(): HTMLDivElement {
   root.style.fontFamily = "Arial, Helvetica, sans-serif";
   root.style.fontSize = "13px";
   root.style.lineHeight = "1.4";
+  root.style.userSelect = "none";
   document.body.appendChild(root);
   return root;
 }
 
 function removeRoot() {
   document.getElementById(ROOT_ID)?.remove();
+}
+
+function createCollapsedAiButton(): HTMLButtonElement {
+  const existing = document.getElementById(COLLAPSED_AI_ID);
+  if (existing) return existing as HTMLButtonElement;
+
+  const button = document.createElement("button");
+  button.id = COLLAPSED_AI_ID;
+  button.type = "button";
+  button.style.position = "fixed";
+  button.style.right = "16px";
+  button.style.bottom = "16px";
+  button.style.zIndex = "2147483647";
+  button.style.width = "44px";
+  button.style.height = "44px";
+  button.style.border = "1px solid #cbd5e1";
+  button.style.borderRadius = "999px";
+  button.style.background = "#ffffff";
+  button.style.boxShadow = "0 12px 24px rgba(15, 23, 42, 0.12)";
+  button.style.cursor = "pointer";
+  button.style.display = "flex";
+  button.style.alignItems = "center";
+  button.style.justifyContent = "center";
+
+  const icon = document.createElement("img");
+  icon.src = chrome.runtime.getURL("assets/icons/icon-32.png");
+  icon.alt = "StreetEasy AI";
+  icon.style.width = "24px";
+  icon.style.height = "24px";
+  button.appendChild(icon);
+
+  button.addEventListener("click", () => {
+    aiPanelCollapsed = false;
+    aiPanelPosition = null;
+    button.remove();
+    renderListingCard();
+  });
+
+  document.body.appendChild(button);
+  return button;
+}
+
+function removeCollapsedAiButton() {
+  document.getElementById(COLLAPSED_AI_ID)?.remove();
+}
+
+function applyAiPanelPosition(root: HTMLDivElement) {
+  if (!aiPanelPosition) {
+    root.style.right = "16px";
+    root.style.bottom = "16px";
+    root.style.left = "auto";
+    root.style.top = "auto";
+    return;
+  }
+
+  root.style.left = `${aiPanelPosition.left}px`;
+  root.style.top = `${aiPanelPosition.top}px`;
+  root.style.right = "auto";
+  root.style.bottom = "auto";
+}
+
+function makeAiPanelDraggable(root: HTMLDivElement) {
+  const handle = root.querySelector<HTMLElement>("#se-ai-drag-handle");
+  if (!handle) return;
+
+  let dragState:
+    | {
+        startX: number;
+        startY: number;
+        startLeft: number;
+        startTop: number;
+      }
+    | null = null;
+
+  handle.addEventListener("mousedown", (event: MouseEvent) => {
+    if (event.button !== 0) return;
+    const rect = root.getBoundingClientRect();
+    dragState = {
+      startX: event.clientX,
+      startY: event.clientY,
+      startLeft: rect.left,
+      startTop: rect.top
+    };
+    root.style.left = `${rect.left}px`;
+    root.style.top = `${rect.top}px`;
+    root.style.right = "auto";
+    root.style.bottom = "auto";
+    event.preventDefault();
+  });
+
+  window.addEventListener("mousemove", (event: MouseEvent) => {
+    if (!dragState) return;
+    const rect = root.getBoundingClientRect();
+    const maxLeft = Math.max(0, window.innerWidth - rect.width);
+    const maxTop = Math.max(0, window.innerHeight - rect.height);
+    const nextLeft = clamp(dragState.startLeft + (event.clientX - dragState.startX), 0, maxLeft);
+    const nextTop = clamp(dragState.startTop + (event.clientY - dragState.startY), 0, maxTop);
+    root.style.left = `${nextLeft}px`;
+    root.style.top = `${nextTop}px`;
+  });
+
+  window.addEventListener("mouseup", () => {
+    if (!dragState) return;
+    dragState = null;
+    const rect = root.getBoundingClientRect();
+    aiPanelPosition = { left: Math.round(rect.left), top: Math.round(rect.top) };
+  });
 }
 
 function chip(label: string, active: boolean): string {
@@ -108,14 +219,27 @@ function renderEvaluationSection(evaluation: EvaluationData | null): string {
 function renderListingCard() {
   if (!currentListing) {
     removeRoot();
+    removeCollapsedAiButton();
     return;
   }
 
+  if (aiPanelCollapsed) {
+    removeRoot();
+    createCollapsedAiButton();
+    return;
+  }
+
+  removeCollapsedAiButton();
+
   const root = createRoot();
+  applyAiPanelPosition(root);
 
   root.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
-      <strong style="font-size:16px;">StreetEasy AI</strong>
+      <div id="se-ai-drag-handle" style="display:flex;align-items:center;gap:8px;cursor:move;flex:1;min-width:0;">
+        <strong style="font-size:16px;">StreetEasy AI</strong>
+      </div>
+      <button id="se-collapse-ai" type="button" style="border:1px solid #cbd5e1;border-radius:6px;background:#fff;padding:2px 8px;cursor:pointer;">_</button>
       <div style="display:flex;gap:6px;">${chip("Viewed", true)}${chip("Contacted", currentState.contacted)}</div>
     </div>
     <div style="margin-top:6px;color:#334155;">${currentListing.address}</div>
@@ -129,6 +253,8 @@ function renderListingCard() {
 
   const contactBtn = root.querySelector<HTMLButtonElement>("#se-toggle-contacted");
   const evalBtn = root.querySelector<HTMLButtonElement>("#se-evaluate");
+  const collapseBtn = root.querySelector<HTMLButtonElement>("#se-collapse-ai");
+  makeAiPanelDraggable(root);
 
   contactBtn?.addEventListener("click", async () => {
     if (!currentListing || isBusy) return;
@@ -165,6 +291,12 @@ function renderListingCard() {
       isBusy = false;
       renderListingCard();
     }
+  });
+
+  collapseBtn?.addEventListener("click", () => {
+    aiPanelCollapsed = true;
+    aiPanelPosition = null;
+    renderListingCard();
   });
 }
 
@@ -531,6 +663,7 @@ async function syncPageState() {
     trackedListingId = "";
     currentError = "";
     renderListingCard();
+    removeCollapsedAiButton();
     ensureResultsObserver();
     await applyResultsFilter();
     return;
