@@ -68,7 +68,7 @@ function createRoot(): HTMLDivElement {
   root.style.fontFamily = "Arial, Helvetica, sans-serif";
   root.style.fontSize = "13px";
   root.style.lineHeight = "1.4";
-  root.style.userSelect = "none";
+  root.style.userSelect = "text";
   document.body.appendChild(root);
   return root;
 }
@@ -102,7 +102,7 @@ function createCollapsedAiButton(): HTMLButtonElement {
   button.style.padding = "0 16px";
 
   const icon = document.createElement("img");
-  icon.src = chrome.runtime.getURL("assets/icons/icon-32.png");
+  icon.src = chrome.runtime.getURL("assets/icons/icon.svg");
   icon.alt = "StreetEasy AI";
   icon.style.width = "23px";
   icon.style.height = "23px";
@@ -247,8 +247,8 @@ function renderListingCard() {
 
   root.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;background:#111318;padding:14px 16px;">
-      <div id="se-ai-drag-handle" style="display:flex;align-items:center;gap:10px;cursor:move;flex:1;min-width:0;">
-        <img src="${chrome.runtime.getURL("assets/icons/icon-32.png")}" alt="StreetEasy AI" style="width:28px;height:28px;border-radius:10px;background:#10b981;padding:6px;box-sizing:border-box;" />
+      <div id="se-ai-drag-handle" style="display:flex;align-items:center;gap:10px;cursor:move;flex:1;min-width:0;user-select:none;">
+        <img src="${chrome.runtime.getURL("assets/icons/icon.svg")}" alt="StreetEasy AI" style="width:40px;height:40px;display:block;flex:0 0 auto;" />
         <strong style="font-size:16px;letter-spacing:0.2px;color:#f8fafc;">StreetEasy Assistant</strong>
       </div>
       <button id="se-collapse-ai" type="button" title="Minimize" style="border:0;border-radius:8px;background:transparent;padding:2px 6px;cursor:pointer;font-size:24px;line-height:1;color:#f8fafc;">✕</button>
@@ -259,11 +259,22 @@ function renderListingCard() {
       <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:10px;">
         <div style="border:1px solid #e5e7eb;border-radius:16px;padding:12px;background:#f3f4f6;">
           <div style="font-size:11px;color:#6b7280;letter-spacing:1px;font-weight:700;">STATUS</div>
-          <div style="margin-top:4px;font-size:15px;font-weight:700;color:#111827;">Viewed</div>
+          <div style="margin-top:4px;display:flex;align-items:center;gap:8px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M2 12C3.7 8.4 7.4 6 12 6C16.6 6 20.3 8.4 22 12C20.3 15.6 16.6 18 12 18C7.4 18 3.7 15.6 2 12Z" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="12" cy="12" r="3" stroke="#10b981" stroke-width="2"/>
+            </svg>
+            <div style="font-size:15px;font-weight:700;color:#111827;">Viewed</div>
+          </div>
         </div>
         <div style="border:1px solid #e5e7eb;border-radius:16px;padding:12px;background:#f3f4f6;">
           <div style="font-size:11px;color:#6b7280;letter-spacing:1px;font-weight:700;">CONTACT</div>
-          <div style="margin-top:4px;font-size:15px;font-weight:700;color:#111827;">${currentState.contacted ? "Contacted" : "Pending"}</div>
+          <div style="margin-top:4px;display:flex;align-items:center;gap:8px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M21 14C21 15.1 20.1 16 19 16H8L4 20V5C4 3.9 4.9 3 6 3H19C20.1 3 21 3.9 21 5V14Z" stroke="${currentState.contacted ? "#10b981" : "#9ca3af"}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <div style="font-size:15px;font-weight:700;color:#111827;">${currentState.contacted ? "Contacted" : "Pending"}</div>
+          </div>
         </div>
       </div>
       <div style="margin-top:12px;display:flex;gap:10px;flex-direction:column;">

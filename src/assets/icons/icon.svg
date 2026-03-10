@@ -1,12 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-label="StreetEasy AI Assistant icon">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#2563EB"/>
-      <stop offset="100%" stop-color="#0EA5E9"/>
-    </linearGradient>
-  </defs>
-  <rect x="8" y="8" width="112" height="112" rx="24" fill="url(#bg)"/>
-  <path d="M31 58L64 33L97 58V95H74V73H54V95H31Z" fill="#F8FAFC"/>
-  <circle cx="93" cy="35" r="9" fill="#FACC15"/>
-  <path d="M93 21V27M93 43V49M79 35H85M101 35H107" stroke="#FACC15" stroke-width="3" stroke-linecap="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 128 128">
+  <rect x="8" y="8" width="112" height="112" rx="26" fill="#10b981"/>
+  <g transform="translate(14 14) scale(0.78)" fill="none" stroke="#ffffff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M36 104V30a8 8 0 0 1 8-8h40a8 8 0 0 1 8 8v74Z"/>
+    <path d="M36 64H28a8 8 0 0 0-8 8v24a8 8 0 0 0 8 8h8"/>
+    <path d="M92 52h8a8 8 0 0 1 8 8v36a8 8 0 0 1-8 8h-8"/>
+    <path d="M52 40h24"/><path d="M52 56h24"/><path d="M52 72h24"/><path d="M52 88h24"/>
+  </g>
 </svg>

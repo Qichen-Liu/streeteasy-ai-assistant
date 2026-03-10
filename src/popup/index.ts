@@ -24,6 +24,7 @@ const removeSelectedBtnEl = document.getElementById("removeSelectedBtn") as HTML
 let allItems: RecentItem[] = [];
 let selectedListingIds = new Set<string>();
 let visibleListingIds: string[] = [];
+let suppressSelectAllChange = false;
 
 function fmtPrice(price?: number): string {
   return typeof price === "number" ? `$${price.toLocaleString()}` : "Price n/a";
@@ -84,7 +85,9 @@ function refreshBulkControls() {
   const hasVisible = visibleListingIds.length > 0;
 
   selectAllVisibleEl.checked = hasVisible && selectedVisibleCount === visibleListingIds.length;
-  selectAllVisibleEl.indeterminate = selectedVisibleCount > 0 && selectedVisibleCount < visibleListingIds.length;
+  const isMixed = selectedVisibleCount > 0 && selectedVisibleCount < visibleListingIds.length;
+  selectAllVisibleEl.indeterminate = isMixed;
+  selectAllVisibleEl.dataset.mixed = isMixed ? "1" : "0";
 
   removeSelectedBtnEl.disabled = selectedListingIds.size === 0;
   removeSelectedBtnEl.textContent =
@@ -174,6 +177,11 @@ filterEl.addEventListener("change", renderItems);
 sortEl.addEventListener("change", renderItems);
 
 selectAllVisibleEl.addEventListener("change", () => {
+  if (suppressSelectAllChange) {
+    suppressSelectAllChange = false;
+    return;
+  }
+
   if (selectAllVisibleEl.checked) {
     for (const id of visibleListingIds) {
       selectedListingIds.add(id);
@@ -182,6 +190,20 @@ selectAllVisibleEl.addEventListener("change", () => {
     for (const id of visibleListingIds) {
       selectedListingIds.delete(id);
     }
+  }
+  renderItems();
+});
+
+selectAllVisibleEl.addEventListener("click", (event) => {
+  if (selectAllVisibleEl.dataset.mixed !== "1") {
+    return;
+  }
+
+  // In mixed state, force "clear visible selections" and skip the following change event.
+  suppressSelectAllChange = true;
+  event.preventDefault();
+  for (const id of visibleListingIds) {
+    selectedListingIds.delete(id);
   }
   renderItems();
 });
@@ -226,7 +248,7 @@ listEl.addEventListener("change", (event) => {
     selectedListingIds.delete(listingId);
   }
 
-  refreshBulkControls();
+  renderItems();
 });
 
 listEl.addEventListener("click", (event) => {
