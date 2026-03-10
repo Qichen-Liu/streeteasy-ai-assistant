@@ -347,14 +347,21 @@ function getResultCardElement(anchor: HTMLAnchorElement): HTMLElement | null {
     anchor.closest<HTMLElement>("[class*='listingCard']");
 
   const listingLinkSelector = "a[href*='/rental/'], a[href*='/sale/'], a[href*='/building/']";
+  const paginationSelector =
+    "a[rel='next'], a[rel='prev'], a[href*='page='], [aria-label*='next' i], [aria-label*='previous' i], [aria-label*='page' i]";
 
   const isSafeCardContainer = (el: HTMLElement): boolean => {
-    if (el.id === RESULTS_TOGGLE_ID || el.contains(document.getElementById(RESULTS_TOGGLE_ID))) {
+    const toggleRoot = document.getElementById(RESULTS_TOGGLE_ID);
+    if (el.id === RESULTS_TOGGLE_ID || (toggleRoot && el.contains(toggleRoot))) {
       return false;
     }
 
     const listingLinks = el.querySelectorAll(listingLinkSelector).length;
-    if (listingLinks < 1 || listingLinks > 8) {
+    if (listingLinks < 1 || listingLinks > 4) {
+      return false;
+    }
+
+    if (el.querySelector(paginationSelector)) {
       return false;
     }
 
@@ -453,9 +460,19 @@ async function applyResultsFilter() {
     processed.add(card);
     total += 1;
 
-    const keys = listingKeysFromUrl(anchor.href);
-    const isViewed = keys.some((key) => tracked.viewed.has(key));
-    const isContacted = keys.some((key) => tracked.contacted.has(key));
+    const cardAnchors = Array.from(card.querySelectorAll<HTMLAnchorElement>("a[href]"));
+    const keys = new Set<string>();
+    for (const link of cardAnchors) {
+      for (const key of listingKeysFromUrl(link.href)) {
+        keys.add(key);
+      }
+    }
+    for (const key of listingKeysFromUrl(anchor.href)) {
+      keys.add(key);
+    }
+
+    const isViewed = Array.from(keys).some((key) => tracked.viewed.has(key));
+    const isContacted = Array.from(keys).some((key) => tracked.contacted.has(key));
 
     let shouldHide = false;
     if (resultsFilterMode === "hide_viewed_only") {
