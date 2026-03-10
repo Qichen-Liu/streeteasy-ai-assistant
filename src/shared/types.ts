@@ -1,4 +1,5 @@
 export type Confidence = "low" | "medium" | "high";
+export type RetentionDays = 30 | 90 | 120 | 180;
 
 export interface ListingData {
   listingId: string;
@@ -41,6 +42,7 @@ export interface UserSettings {
   model: string;
   reportMode: "fast" | "detailed";
   riskPriorities: string[];
+  retentionDays: RetentionDays;
 }
 
 export interface PublicSettings {
@@ -48,6 +50,7 @@ export interface PublicSettings {
   model: string;
   reportMode: "fast" | "detailed";
   riskPriorities: string[];
+  retentionDays: RetentionDays;
 }
 
 export interface StoreState {
@@ -56,4 +59,5 @@ export interface StoreState {
   activityById: Record<string, ActivityData>;
   evaluationsBySnapshotKey: Record<string, EvaluationData>;
   settings: UserSettings;
+  lastRetentionCleanupAt: string | null;
 }
