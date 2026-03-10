@@ -22,6 +22,7 @@ type TrackedSets = {
 const ROOT_ID = "se-ai-assistant-root";
 const RESULTS_TOGGLE_ID = "se-results-filter-root";
 const RESULTS_FILTER_STORAGE_KEY = "streeteasyResultsFilterMode";
+const RESULTS_FILTER_POSITION_STORAGE_KEY = "streeteasyResultsFilterPosition";
 const STORE_STORAGE_KEY = "streeteasyAssistantState";
 
 let currentUrl = "";
@@ -32,6 +33,11 @@ let isBusy = false;
 let currentError = "";
 let resultsFilterMode: ResultsFilterMode = "show_all";
 let resultsObserver: MutationObserver | null = null;
+
+type ResultsFilterPosition = {
+  left: number;
+  top: number;
+};
 
 function isLikelyListingPage(): boolean {
   return isLikelyListingPath(window.location.pathname);
@@ -221,12 +227,104 @@ function createResultsToggleRoot(): HTMLDivElement {
   root.style.fontSize = "12px";
   root.style.color = "#0f172a";
   root.style.minWidth = "220px";
+  root.style.userSelect = "none";
+  root.innerHTML = `
+    <div id="se-results-header" style="display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:move;">
+      <strong style="font-size:12px;">StreetEasy Filters</strong>
+      <span id="se-results-count" style="color:#475569;font-size:11px;"></span>
+    </div>
+    <select id="se-results-mode" style="margin-top:6px;width:100%;border:1px solid #cbd5e1;border-radius:7px;padding:4px;background:#fff;cursor:pointer;">
+      <option value="show_all">Show all</option>
+      <option value="hide_viewed_only">Hide viewed only</option>
+      <option value="hide_viewed_and_contacted">Hide viewed + contacted</option>
+    </select>
+  `;
   document.body.appendChild(root);
+
+  const select = root.querySelector<HTMLSelectElement>("#se-results-mode");
+  if (select) {
+    select.value = resultsFilterMode;
+    select.addEventListener("change", () => {
+      resultsFilterMode = select.value as ResultsFilterMode;
+      void chrome.storage.local.set({ [RESULTS_FILTER_STORAGE_KEY]: resultsFilterMode });
+      void applyResultsFilter();
+    });
+  }
+
+  makeResultsRootDraggable(root);
+  void restoreResultsRootPosition(root);
   return root;
 }
 
 function removeResultsToggleRoot() {
   document.getElementById(RESULTS_TOGGLE_ID)?.remove();
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
+function makeResultsRootDraggable(root: HTMLDivElement) {
+  const handle = root.querySelector<HTMLElement>("#se-results-header");
+  if (!handle) return;
+
+  let dragState:
+    | {
+        startX: number;
+        startY: number;
+        startLeft: number;
+        startTop: number;
+      }
+    | null = null;
+
+  handle.addEventListener("mousedown", (event: MouseEvent) => {
+    if (event.button !== 0) return;
+    const rect = root.getBoundingClientRect();
+    dragState = {
+      startX: event.clientX,
+      startY: event.clientY,
+      startLeft: rect.left,
+      startTop: rect.top
+    };
+    root.style.left = `${rect.left}px`;
+    root.style.top = `${rect.top}px`;
+    root.style.right = "auto";
+    event.preventDefault();
+  });
+
+  window.addEventListener("mousemove", (event: MouseEvent) => {
+    if (!dragState) return;
+    const rect = root.getBoundingClientRect();
+    const maxLeft = Math.max(0, window.innerWidth - rect.width);
+    const maxTop = Math.max(0, window.innerHeight - rect.height);
+    const nextLeft = clamp(dragState.startLeft + (event.clientX - dragState.startX), 0, maxLeft);
+    const nextTop = clamp(dragState.startTop + (event.clientY - dragState.startY), 0, maxTop);
+    root.style.left = `${nextLeft}px`;
+    root.style.top = `${nextTop}px`;
+  });
+
+  window.addEventListener("mouseup", () => {
+    if (!dragState) return;
+    dragState = null;
+    const rect = root.getBoundingClientRect();
+    const position: ResultsFilterPosition = { left: Math.round(rect.left), top: Math.round(rect.top) };
+    void chrome.storage.local.set({ [RESULTS_FILTER_POSITION_STORAGE_KEY]: position });
+  });
+}
+
+async function restoreResultsRootPosition(root: HTMLDivElement) {
+  const saved = await chrome.storage.local.get(RESULTS_FILTER_POSITION_STORAGE_KEY);
+  const position = saved[RESULTS_FILTER_POSITION_STORAGE_KEY] as ResultsFilterPosition | undefined;
+  if (!position || typeof position.left !== "number" || typeof position.top !== "number") {
+    return;
+  }
+
+  const rect = root.getBoundingClientRect();
+  const maxLeft = Math.max(0, window.innerWidth - rect.width);
+  const maxTop = Math.max(0, window.innerHeight - rect.height);
+  root.style.left = `${clamp(position.left, 0, maxLeft)}px`;
+  root.style.top = `${clamp(position.top, 0, maxTop)}px`;
+  root.style.right = "auto";
 }
 
 function resetHiddenResultCards() {
@@ -298,29 +396,9 @@ async function applyResultsFilter() {
   const anchors = collectResultAnchors();
 
   const root = createResultsToggleRoot();
-  root.innerHTML = `
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-      <strong style="font-size:12px;">StreetEasy Filters</strong>
-      <span id="se-results-count" style="color:#475569;font-size:11px;"></span>
-    </div>
-    <select id="se-results-mode" style="margin-top:6px;width:100%;border:1px solid #cbd5e1;border-radius:7px;padding:4px;background:#fff;">
-      <option value="show_all">Show all</option>
-      <option value="hide_viewed_only">Hide viewed only</option>
-      <option value="hide_viewed_and_contacted">Hide viewed + contacted</option>
-    </select>
-  `;
-
   const select = root.querySelector<HTMLSelectElement>("#se-results-mode");
   const count = root.querySelector<HTMLSpanElement>("#se-results-count");
-
-  if (select) {
-    select.value = resultsFilterMode;
-    select.addEventListener("change", () => {
-      resultsFilterMode = select.value as ResultsFilterMode;
-      void chrome.storage.local.set({ [RESULTS_FILTER_STORAGE_KEY]: resultsFilterMode });
-      void applyResultsFilter();
-    });
-  }
+  if (select) select.value = resultsFilterMode;
 
   resetHiddenResultCards();
 
@@ -428,8 +506,8 @@ async function syncPageState() {
   renderListingCard();
 }
 
-async function loadResultsMode() {
-  const saved = await chrome.storage.local.get(RESULTS_FILTER_STORAGE_KEY);
+async function loadResultsPreferences() {
+  const saved = await chrome.storage.local.get([RESULTS_FILTER_STORAGE_KEY, RESULTS_FILTER_POSITION_STORAGE_KEY]);
   const value = saved[RESULTS_FILTER_STORAGE_KEY];
   if (value === "show_all" || value === "hide_viewed_only" || value === "hide_viewed_and_contacted") {
     resultsFilterMode = value;
@@ -468,7 +546,7 @@ function startNavigationWatcher() {
     }
   }, 800);
 
-  void loadResultsMode().then(() => runSync());
+  void loadResultsPreferences().then(() => runSync());
 }
 
 startNavigationWatcher();
