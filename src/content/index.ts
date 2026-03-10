@@ -335,38 +335,50 @@ function resetHiddenResultCards() {
 }
 
 function getResultCardElement(anchor: HTMLAnchorElement): HTMLElement | null {
-  const initial =
+  const preferred =
     anchor.closest<HTMLElement>("article") ||
-    anchor.closest<HTMLElement>("[data-testid*='listing']") ||
-    anchor.closest<HTMLElement>("[class*='ListingCard']") ||
-    anchor.closest<HTMLElement>("[class*='listingCard']") ||
     anchor.closest<HTMLElement>("li") ||
-    anchor.closest<HTMLElement>("div");
+    anchor.closest<HTMLElement>("[role='listitem']") ||
+    anchor.closest<HTMLElement>("[data-testid*='listingCard']") ||
+    anchor.closest<HTMLElement>("[class*='ListingCard']") ||
+    anchor.closest<HTMLElement>("[class*='listingCard']");
 
-  if (!initial) return null;
+  const listingLinkSelector = "a[href*='/rental/'], a[href*='/sale/'], a[href*='/building/']";
 
-  // Promote from inner card wrappers to the direct grid/list item element so
-  // hidden cards collapse layout gaps instead of leaving empty slots.
-  let candidate: HTMLElement = initial;
-  let current: HTMLElement | null = initial;
-
-  for (let i = 0; i < 8 && current?.parentElement; i += 1) {
-    const parentEl: HTMLElement = current.parentElement;
-    const siblings = Array.from(parentEl.children) as HTMLElement[];
-    if (siblings.length < 2) {
-      current = parentEl;
-      continue;
+  const isSafeCardContainer = (el: HTMLElement): boolean => {
+    if (el.id === RESULTS_TOGGLE_ID || el.contains(document.getElementById(RESULTS_TOGGLE_ID))) {
+      return false;
     }
 
-    const siblingMatches = siblings.filter((el) => el.querySelector("a[href*='/rental/'], a[href*='/sale/'], a[href*='/building/']"));
-    if (siblingMatches.length >= 2) {
-      candidate = current;
+    const listingLinks = el.querySelectorAll(listingLinkSelector).length;
+    if (listingLinks < 1 || listingLinks > 8) {
+      return false;
     }
 
+    const rect = el.getBoundingClientRect();
+    if (rect.width < 120 || rect.height < 80 || rect.height > 1200) {
+      return false;
+    }
+
+    return true;
+  };
+
+  if (preferred && isSafeCardContainer(preferred)) {
+    return preferred;
+  }
+
+  // Fallback: walk up a few levels and choose the nearest safe container.
+  let current: HTMLElement | null = anchor as unknown as HTMLElement;
+  for (let i = 0; i < 8 && current; i += 1) {
+    const parentEl: HTMLElement | null = current.parentElement;
+    if (!parentEl) break;
+    if (isSafeCardContainer(parentEl)) {
+      return parentEl;
+    }
     current = parentEl;
   }
 
-  return candidate;
+  return null;
 }
 
 async function loadTrackedSets(): Promise<TrackedSets> {
