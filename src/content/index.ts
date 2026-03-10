@@ -335,14 +335,38 @@ function resetHiddenResultCards() {
 }
 
 function getResultCardElement(anchor: HTMLAnchorElement): HTMLElement | null {
-  return (
+  const initial =
     anchor.closest<HTMLElement>("article") ||
     anchor.closest<HTMLElement>("[data-testid*='listing']") ||
     anchor.closest<HTMLElement>("[class*='ListingCard']") ||
     anchor.closest<HTMLElement>("[class*='listingCard']") ||
     anchor.closest<HTMLElement>("li") ||
-    anchor.closest<HTMLElement>("div")
-  );
+    anchor.closest<HTMLElement>("div");
+
+  if (!initial) return null;
+
+  // Promote from inner card wrappers to the direct grid/list item element so
+  // hidden cards collapse layout gaps instead of leaving empty slots.
+  let candidate: HTMLElement = initial;
+  let current: HTMLElement | null = initial;
+
+  for (let i = 0; i < 8 && current?.parentElement; i += 1) {
+    const parentEl: HTMLElement = current.parentElement;
+    const siblings = Array.from(parentEl.children) as HTMLElement[];
+    if (siblings.length < 2) {
+      current = parentEl;
+      continue;
+    }
+
+    const siblingMatches = siblings.filter((el) => el.querySelector("a[href*='/rental/'], a[href*='/sale/'], a[href*='/building/']"));
+    if (siblingMatches.length >= 2) {
+      candidate = current;
+    }
+
+    current = parentEl;
+  }
+
+  return candidate;
 }
 
 async function loadTrackedSets(): Promise<TrackedSets> {
