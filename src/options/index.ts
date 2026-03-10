@@ -4,6 +4,7 @@ const apiKeyEl = document.getElementById("apiKey") as HTMLInputElement;
 const modelEl = document.getElementById("model") as HTMLSelectElement;
 const modeEl = document.getElementById("mode") as HTMLSelectElement;
 const prioritiesEl = document.getElementById("priorities") as HTMLInputElement;
+const retentionDaysEl = document.getElementById("retentionDays") as HTMLSelectElement;
 const statusEl = document.getElementById("status") as HTMLDivElement;
 
 async function loadSettings() {
@@ -22,6 +23,7 @@ async function loadSettings() {
   modelEl.value = settings.model;
   modeEl.value = settings.reportMode;
   prioritiesEl.value = settings.riskPriorities.join(",");
+  retentionDaysEl.value = String(settings.retentionDays);
 }
 
 async function save() {
@@ -38,7 +40,8 @@ async function save() {
     openaiApiKey: apiKeyEl.value.trim(),
     model: modelEl.value,
     reportMode: modeEl.value as "fast" | "detailed",
-    riskPriorities: prioritiesEl.value.split(",").map((s) => s.trim()).filter(Boolean)
+    riskPriorities: prioritiesEl.value.split(",").map((s) => s.trim()).filter(Boolean),
+    retentionDays: Number(retentionDaysEl.value) as UserSettings["retentionDays"]
   };
 
   const response = (await chrome.runtime.sendMessage({
@@ -61,12 +64,29 @@ async function clearApiKey() {
   }
 }
 
+async function clearTrackedData() {
+  const ok = window.confirm("Clear all tracked viewed/contacted/evaluation data?");
+  if (!ok) {
+    return;
+  }
+
+  const response = (await chrome.runtime.sendMessage({ type: "CLEAR_TRACKED_DATA" })) as {
+    ok: boolean;
+    error?: string;
+  };
+  statusEl.textContent = response.ok ? "Tracked data cleared." : response.error || "Failed to clear tracked data.";
+}
+
 (document.getElementById("saveBtn") as HTMLButtonElement).addEventListener("click", () => {
   void save();
 });
 
 (document.getElementById("clearBtn") as HTMLButtonElement).addEventListener("click", () => {
   void clearApiKey();
+});
+
+(document.getElementById("clearDataBtn") as HTMLButtonElement).addEventListener("click", () => {
+  void clearTrackedData();
 });
 
 void loadSettings();
