@@ -1,5 +1,6 @@
 import { getState, setState } from "../shared/storage";
 import { extractResponseJsonText, parseEvaluationFromUnknown } from "./openai-parser";
+import { applyRetentionCleanup, normalizeRetentionDays } from "./retention";
 import type {
   ActivityData,
   EvaluationData,
@@ -26,6 +27,15 @@ function nowIso(): string {
   return new Date().toISOString();
 }
 
+async function getStateWithRetention(force = false) {
+  const state = await getState();
+  const changed = applyRetentionCleanup(state, new Date(), force);
+  if (changed) {
+    await setState(state);
+  }
+  return state;
+}
+
 function getDedupKey(listing: ListingData): string {
   try {
     const parsed = new URL(listing.url, "https://streeteasy.com");
@@ -40,7 +50,7 @@ function getDedupKey(listing: ListingData): string {
 }
 
 async function upsertViewed(listing: ListingData) {
-  const state = await getState();
+  const state = await getStateWithRetention();
   state.listingsById[listing.listingId] = { ...listing, lastSeenAt: nowIso() };
 
   const existing: ActivityData =
@@ -67,7 +77,7 @@ function findLatestEvaluation(state: Awaited<ReturnType<typeof getState>>, listi
 }
 
 async function toggleContacted(listingId: string, contacted: boolean) {
-  const state = await getState();
+  const state = await getStateWithRetention();
   const existing =
     state.activityById[listingId] ||
     ({
@@ -91,7 +101,7 @@ async function toggleContacted(listingId: string, contacted: boolean) {
 }
 
 async function removeListing(listingId: string) {
-  const state = await getState();
+  const state = await getStateWithRetention();
 
   delete state.listingsById[listingId];
   delete state.activityById[listingId];
@@ -106,7 +116,7 @@ async function removeListing(listingId: string) {
 }
 
 async function runAiEvaluation(listing: ListingData, contextText: string): Promise<EvaluationData> {
-  const state = await getState();
+  const state = await getStateWithRetention();
   const { openaiApiKey, model, riskPriorities, reportMode } = state.settings;
 
   if (!openaiApiKey) {
@@ -237,7 +247,7 @@ reportMode=${reportMode}; riskPriorities=${riskPriorities.join(",")}`;
 }
 
 async function getRecentActivity() {
-  const state = await getState();
+  const state = await getStateWithRetention();
   const dedupedByPath = new Map<string, ListingData>();
   for (const listing of Object.values(state.listingsById)) {
     const key = getDedupKey(listing);
@@ -269,28 +279,40 @@ async function getRecentActivity() {
 }
 
 async function getSettings() {
-  const state = await getState();
+  const state = await getStateWithRetention();
   const safeSettings: PublicSettings = {
     hasApiKey: Boolean(state.settings.openaiApiKey),
     model: state.settings.model,
     reportMode: state.settings.reportMode,
-    riskPriorities: state.settings.riskPriorities
+    riskPriorities: state.settings.riskPriorities,
+    retentionDays: state.settings.retentionDays
   };
   return safeSettings;
 }
 
 async function saveSettings(settings: UserSettings) {
-  const state = await getState();
+  const state = await getStateWithRetention();
   state.settings = {
     ...settings,
-    openaiApiKey: settings.openaiApiKey || state.settings.openaiApiKey
+    openaiApiKey: settings.openaiApiKey || state.settings.openaiApiKey,
+    retentionDays: normalizeRetentionDays(settings.retentionDays)
   };
+  applyRetentionCleanup(state, new Date(), true);
   await setState(state);
 }
 
 async function clearApiKey() {
-  const state = await getState();
+  const state = await getStateWithRetention();
   state.settings.openaiApiKey = "";
+  await setState(state);
+}
+
+async function clearTrackedData() {
+  const state = await getStateWithRetention();
+  state.listingsById = {};
+  state.activityById = {};
+  state.evaluationsBySnapshotKey = {};
+  state.lastRetentionCleanupAt = nowIso();
   await setState(state);
 }
 
@@ -323,7 +345,7 @@ chrome.runtime.onMessage.addListener((request: RuntimeRequest, _sender, sendResp
         break;
       }
       case "GET_LISTING_STATE": {
-        const state = await getState();
+        const state = await getStateWithRetention();
         const activity = state.activityById[request.listingId];
         const payload = {
           contacted: Boolean(activity?.contactedAt?.length),
@@ -344,6 +366,11 @@ chrome.runtime.onMessage.addListener((request: RuntimeRequest, _sender, sendResp
       }
       case "CLEAR_API_KEY": {
         await clearApiKey();
+        sendResponse({ ok: true });
+        break;
+      }
+      case "CLEAR_TRACKED_DATA": {
+        await clearTrackedData();
         sendResponse({ ok: true });
         break;
       }
