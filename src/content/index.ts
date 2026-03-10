@@ -33,7 +33,6 @@ let isBusy = false;
 let currentError = "";
 let resultsFilterMode: ResultsFilterMode = "show_all";
 let resultsObserver: MutationObserver | null = null;
-let dismissedEmptyPagePromptKey: string | null = null;
 
 type ResultsFilterPosition = {
   left: number;
@@ -247,7 +246,6 @@ function createResultsToggleRoot(): HTMLDivElement {
     select.value = resultsFilterMode;
     select.addEventListener("change", () => {
       resultsFilterMode = select.value as ResultsFilterMode;
-      dismissedEmptyPagePromptKey = null;
       void chrome.storage.local.set({ [RESULTS_FILTER_STORAGE_KEY]: resultsFilterMode });
       void applyResultsFilter();
     });
@@ -423,73 +421,6 @@ function modeLabel(mode: ResultsFilterMode): string {
   return "Show all";
 }
 
-function isDisabledNavLink(link: HTMLAnchorElement): boolean {
-  const ariaDisabled = link.getAttribute("aria-disabled") === "true";
-  const classDisabled = /disabled/i.test(link.className || "");
-  return ariaDisabled || classDisabled;
-}
-
-function findNextPageUrl(): string | null {
-  const relNext = document.querySelector<HTMLAnchorElement>("a[rel='next'][href]");
-  if (relNext && !isDisabledNavLink(relNext)) {
-    return relNext.href;
-  }
-
-  const anchors = Array.from(document.querySelectorAll<HTMLAnchorElement>("a[href]"));
-  for (const link of anchors) {
-    const text = (link.textContent || "").trim().toLowerCase();
-    const ariaLabel = (link.getAttribute("aria-label") || "").trim().toLowerCase();
-    if ((text === "next" || ariaLabel.includes("next")) && !isDisabledNavLink(link)) {
-      return link.href;
-    }
-  }
-
-  return null;
-}
-
-function findFirstPageUrl(): string | null {
-  const pageOneLink = document.querySelector<HTMLAnchorElement>("a[href*='page=1']");
-  if (pageOneLink && !isDisabledNavLink(pageOneLink)) {
-    return pageOneLink.href;
-  }
-
-  try {
-    const url = new URL(window.location.href);
-    if (url.searchParams.has("page")) {
-      url.searchParams.set("page", "1");
-      return url.toString();
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-function maybeNavigateWhenFilteredEmpty(total: number, hidden: number) {
-  if (resultsFilterMode === "show_all") return;
-  if (total === 0 || hidden < total) return;
-
-  const promptKey = `${window.location.href}|${resultsFilterMode}`;
-  if (dismissedEmptyPagePromptKey === promptKey) return;
-
-  const nextPageUrl = findNextPageUrl();
-  const fallbackFirstPageUrl = findFirstPageUrl();
-  const targetUrl = nextPageUrl || fallbackFirstPageUrl;
-  if (!targetUrl || targetUrl === window.location.href) return;
-
-  const destination = nextPageUrl ? "next page" : "first page";
-  const shouldNavigate = window.confirm(
-    `No non-viewed listings are available on this page. Move to the ${destination}?`
-  );
-
-  if (!shouldNavigate) {
-    dismissedEmptyPagePromptKey = promptKey;
-    return;
-  }
-
-  window.location.href = targetUrl;
-}
-
 async function applyResultsFilter() {
   if (!isLikelyResultsPage()) {
     resetHiddenResultCards();
@@ -539,8 +470,6 @@ async function applyResultsFilter() {
   if (count) {
     count.textContent = `${modeLabel(resultsFilterMode)}: ${hidden} hidden / ${total}`;
   }
-
-  maybeNavigateWhenFilteredEmpty(total, hidden);
 }
 
 function stopResultsObserver() {
@@ -572,9 +501,6 @@ async function syncPageState() {
     return;
   }
 
-  if (href !== currentUrl) {
-    dismissedEmptyPagePromptKey = null;
-  }
   currentUrl = href;
 
   if (!isLikelyListingPage()) {
