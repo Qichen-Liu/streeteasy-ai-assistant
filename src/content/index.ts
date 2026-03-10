@@ -59,12 +59,12 @@ function createRoot(): HTMLDivElement {
   root.style.zIndex = "2147483647";
   root.style.maxWidth = "420px";
   root.style.width = "calc(100vw - 32px)";
-  root.style.background = "#ffffff";
-  root.style.color = "#0f172a";
-  root.style.border = "1px solid #dbe4ee";
-  root.style.borderRadius = "14px";
-  root.style.padding = "14px";
-  root.style.boxShadow = "0 14px 30px rgba(15, 23, 42, 0.14)";
+  root.style.background = "#f3f4f6";
+  root.style.color = "#111827";
+  root.style.border = "1px solid #e5e7eb";
+  root.style.borderRadius = "18px";
+  root.style.overflow = "hidden";
+  root.style.boxShadow = "0 20px 40px rgba(15, 23, 42, 0.18)";
   root.style.fontFamily = "Arial, Helvetica, sans-serif";
   root.style.fontSize = "13px";
   root.style.lineHeight = "1.4";
@@ -88,23 +88,40 @@ function createCollapsedAiButton(): HTMLButtonElement {
   button.style.right = "16px";
   button.style.bottom = "16px";
   button.style.zIndex = "2147483647";
-  button.style.width = "44px";
-  button.style.height = "44px";
-  button.style.border = "1px solid #cbd5e1";
+  button.style.height = "60px";
+  button.style.minWidth = "156px";
+  button.style.border = "1px solid #0b0f19";
   button.style.borderRadius = "999px";
-  button.style.background = "#ffffff";
-  button.style.boxShadow = "0 12px 24px rgba(15, 23, 42, 0.12)";
+  button.style.background = "#111318";
+  button.style.boxShadow = "0 16px 30px rgba(15, 23, 42, 0.22)";
   button.style.cursor = "pointer";
   button.style.display = "flex";
   button.style.alignItems = "center";
-  button.style.justifyContent = "center";
+  button.style.justifyContent = "space-between";
+  button.style.gap = "10px";
+  button.style.padding = "0 16px";
 
   const icon = document.createElement("img");
   icon.src = chrome.runtime.getURL("assets/icons/icon-32.png");
   icon.alt = "StreetEasy AI";
-  icon.style.width = "24px";
-  icon.style.height = "24px";
+  icon.style.width = "23px";
+  icon.style.height = "23px";
+  icon.style.flex = "0 0 auto";
+  const label = document.createElement("span");
+  label.textContent = "Assistant";
+  label.style.color = "#f8fafc";
+  label.style.fontWeight = "700";
+  label.style.fontSize = "18px";
+  label.style.letterSpacing = "0.2px";
+  const chevron = document.createElement("span");
+  chevron.textContent = "⌃";
+  chevron.style.color = "#f8fafc";
+  chevron.style.fontSize = "18px";
+  chevron.style.lineHeight = "1";
+
   button.appendChild(icon);
+  button.appendChild(label);
+  button.appendChild(chevron);
 
   button.addEventListener("click", () => {
     aiPanelCollapsed = false;
@@ -184,12 +201,6 @@ function makeAiPanelDraggable(root: HTMLDivElement) {
   });
 }
 
-function chip(label: string, active: boolean): string {
-  const bg = active ? "#dcfce7" : "#e2e8f0";
-  const color = active ? "#166534" : "#334155";
-  return `<span style="background:${bg};color:${color};padding:2px 8px;border-radius:999px;font-size:12px;">${label}</span>`;
-}
-
 function formatEvalTime(iso?: string): string {
   if (!iso) return "";
   const dt = new Date(iso);
@@ -199,20 +210,20 @@ function formatEvalTime(iso?: string): string {
 
 function renderEvaluationSection(evaluation: EvaluationData | null): string {
   if (!evaluation) {
-    return "<div style='margin-top:8px;color:#64748b;'>No AI evaluation yet.</div>";
+    return "<div style='margin-top:10px;color:#6b7280;font-size:15px;'>No AI evaluation yet.</div>";
   }
 
   const risks = evaluation.riskFlags.length ? evaluation.riskFlags.slice(0, 4).join("; ") : "None";
 
-  return `<div style="margin-top:8px;border-top:1px solid #e2e8f0;padding-top:8px;">
-    <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:12px;">
+  return `<div style="margin-top:10px;padding:10px;border:1px solid #d1d5db;border-radius:12px;background:#ffffff;">
+    <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:#374151;">
       <div><strong>Price</strong> ${evaluation.priceScore}/100</div>
       <div><strong>Quality</strong> ${evaluation.qualityScore}/100</div>
       <div><strong>Confidence</strong> ${evaluation.confidence}</div>
     </div>
-    <div style="margin-top:6px;"><strong>Summary:</strong> ${evaluation.summary || "n/a"}</div>
-    <div style="margin-top:6px;"><strong>Risks:</strong> ${risks}</div>
-    <div style="margin-top:6px;color:#64748b;font-size:12px;">Last evaluated: ${formatEvalTime(evaluation.evaluatedAt)}</div>
+    <div style="margin-top:7px;font-size:13px;"><strong>Summary:</strong> ${evaluation.summary || "n/a"}</div>
+    <div style="margin-top:6px;font-size:13px;"><strong>Risks:</strong> ${risks}</div>
+    <div style="margin-top:7px;color:#64748b;font-size:11px;">Last evaluated: ${formatEvalTime(evaluation.evaluatedAt)}</div>
   </div>`;
 }
 
@@ -235,21 +246,33 @@ function renderListingCard() {
   applyAiPanelPosition(root);
 
   root.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
-      <div id="se-ai-drag-handle" style="display:flex;align-items:center;gap:8px;cursor:move;flex:1;min-width:0;">
-        <span style="color:#94a3b8;font-size:13px;line-height:1;">⋮⋮</span>
-        <strong style="font-size:16px;letter-spacing:0.2px;">StreetEasy AI</strong>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;background:#111318;padding:14px 16px;">
+      <div id="se-ai-drag-handle" style="display:flex;align-items:center;gap:10px;cursor:move;flex:1;min-width:0;">
+        <img src="${chrome.runtime.getURL("assets/icons/icon-32.png")}" alt="StreetEasy AI" style="width:28px;height:28px;border-radius:10px;background:#10b981;padding:6px;box-sizing:border-box;" />
+        <strong style="font-size:16px;letter-spacing:0.2px;color:#f8fafc;">StreetEasy Assistant</strong>
       </div>
-      <div style="display:flex;gap:6px;">${chip("Viewed", true)}${chip("Contacted", currentState.contacted)}</div>
-      <button id="se-collapse-ai" type="button" title="Minimize" style="border:1px solid #cbd5e1;border-radius:7px;background:#fff;padding:2px 8px;cursor:pointer;font-size:14px;line-height:1;">−</button>
+      <button id="se-collapse-ai" type="button" title="Minimize" style="border:0;border-radius:8px;background:transparent;padding:2px 6px;cursor:pointer;font-size:24px;line-height:1;color:#f8fafc;">✕</button>
     </div>
-    <div style="margin-top:7px;color:#334155;font-size:15px;">${currentListing.address}</div>
-    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
-      <button id="se-toggle-contacted" ${isBusy ? "disabled" : ""} style="border:0;border-radius:9px;padding:7px 12px;cursor:pointer;background:#2563eb;color:white;opacity:${isBusy ? "0.6" : "1"};">${currentState.contacted ? "Unmark Contacted" : "Mark Contacted"}</button>
-      <button id="se-evaluate" ${isBusy ? "disabled" : ""} style="border:0;border-radius:9px;padding:7px 12px;cursor:pointer;background:#f59e0b;color:#111827;font-weight:600;opacity:${isBusy ? "0.6" : "1"};">${isBusy ? "Evaluating..." : "AI Evaluate"}</button>
+    <div style="padding:16px;">
+      <div style="font-size:18px;font-weight:800;line-height:1.25;color:#111827;">${currentListing.address}</div>
+      <div style="margin-top:6px;color:#6b7280;font-size:17px;">$ ${typeof currentListing.price === "number" ? currentListing.price.toLocaleString() : "Price n/a"}</div>
+      <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div style="border:1px solid #e5e7eb;border-radius:16px;padding:12px;background:#f3f4f6;">
+          <div style="font-size:11px;color:#6b7280;letter-spacing:1px;font-weight:700;">STATUS</div>
+          <div style="margin-top:4px;font-size:15px;font-weight:700;color:#111827;">Viewed</div>
+        </div>
+        <div style="border:1px solid #e5e7eb;border-radius:16px;padding:12px;background:#f3f4f6;">
+          <div style="font-size:11px;color:#6b7280;letter-spacing:1px;font-weight:700;">CONTACT</div>
+          <div style="margin-top:4px;font-size:15px;font-weight:700;color:#111827;">${currentState.contacted ? "Contacted" : "Pending"}</div>
+        </div>
+      </div>
+      <div style="margin-top:12px;display:flex;gap:10px;flex-direction:column;">
+        <button id="se-toggle-contacted" ${isBusy ? "disabled" : ""} style="border:0;border-radius:16px;padding:11px 14px;cursor:pointer;background:#e5e7eb;color:#111827;font-size:17px;font-weight:700;opacity:${isBusy ? "0.6" : "1"};">${currentState.contacted ? "Unmark Contacted" : "Mark Contacted"}</button>
+        <button id="se-evaluate" ${isBusy ? "disabled" : ""} style="border:0;border-radius:16px;padding:11px 14px;cursor:pointer;background:#10b981;color:#f8fafc;font-size:17px;font-weight:800;opacity:${isBusy ? "0.6" : "1"};">${isBusy ? "Evaluating..." : "AI Evaluate"}</button>
+      </div>
+      ${currentError ? `<div style='margin-top:10px;color:#b91c1c;font-size:13px;'>${currentError}</div>` : ""}
+      ${renderEvaluationSection(currentState.latestEvaluation)}
     </div>
-    ${currentError ? `<div style='margin-top:8px;color:#b91c1c;'>${currentError}</div>` : ""}
-    ${renderEvaluationSection(currentState.latestEvaluation)}
   `;
 
   const contactBtn = root.querySelector<HTMLButtonElement>("#se-toggle-contacted");
