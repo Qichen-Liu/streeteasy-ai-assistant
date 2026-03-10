@@ -114,6 +114,7 @@ function renderItems() {
   listEl.className = "";
   listEl.innerHTML = sorted
     .map((item) => {
+      const isSelected = selectedListingIds.has(item.listing.listingId);
       const chips = [
         item.contacted
           ? '<span class="chip chip-contacted">Contacted</span>'
@@ -125,9 +126,11 @@ function renderItems() {
         ? `<div class="scores">AI Price ${item.latestEvaluation.priceScore}/100 | Quality ${item.latestEvaluation.qualityScore}/100 | ${item.latestEvaluation.confidence}</div>`
         : "";
 
-      const checked = selectedListingIds.has(item.listing.listingId) ? "checked" : "";
+      const checked = isSelected ? "checked" : "";
+      const selectedClass = isSelected ? " item-selected" : "";
+      const removeDisabled = isSelected ? "disabled" : "";
 
-      return `<div class="item">
+      return `<div class="item${selectedClass}">
         <div class="item-head">
           <input class="item-checkbox" type="checkbox" data-listing-id="${item.listing.listingId}" ${checked} />
           <div>
@@ -139,7 +142,7 @@ function renderItems() {
         ${scoreLine}
         <div class="actions">
           <a href="${item.listing.url}" target="_blank" rel="noreferrer">Open listing</a>
-          <button class="remove-btn" data-listing-id="${item.listing.listingId}" data-address="${item.listing.address}">Remove</button>
+          <button class="remove-btn" data-listing-id="${item.listing.listingId}" data-address="${item.listing.address}" ${removeDisabled}>Remove</button>
         </div>
       </div>`;
     })
@@ -235,6 +238,10 @@ listEl.addEventListener("click", (event) => {
   const listingId = target.getAttribute("data-listing-id");
   const address = target.getAttribute("data-address") || "this listing";
   if (!listingId) {
+    return;
+  }
+
+  if (selectedListingIds.has(listingId) || (target as HTMLButtonElement).disabled) {
     return;
   }
 
