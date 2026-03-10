@@ -3,7 +3,7 @@ import type { PublicSettings, UserSettings } from "../shared/types";
 const apiKeyEl = document.getElementById("apiKey") as HTMLInputElement;
 const modelEl = document.getElementById("model") as HTMLSelectElement;
 const modeEl = document.getElementById("mode") as HTMLSelectElement;
-const prioritiesEl = document.getElementById("priorities") as HTMLInputElement;
+const prioritiesEl = document.getElementById("priorities") as HTMLTextAreaElement;
 const retentionDaysEl = document.getElementById("retentionDays") as HTMLSelectElement;
 const statusEl = document.getElementById("status") as HTMLDivElement;
 
