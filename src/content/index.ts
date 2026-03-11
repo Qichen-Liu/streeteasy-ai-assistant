@@ -37,6 +37,7 @@ let resultsFilterMode: ResultsFilterMode = "show_all";
 let resultsObserver: MutationObserver | null = null;
 let aiPanelCollapsed = false;
 let aiPanelPosition: { left: number; top: number } | null = null;
+let extensionContextValid = true;
 
 type ResultsFilterPosition = {
   left: number;
@@ -45,6 +46,48 @@ type ResultsFilterPosition = {
 
 function isLikelyListingPage(): boolean {
   return isLikelyListingPath(window.location.pathname);
+}
+
+function isExtensionContextInvalidated(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  return error.message.toLowerCase().includes("extension context invalidated");
+}
+
+function markExtensionContextInvalidated() {
+  if (!extensionContextValid) return;
+  extensionContextValid = false;
+  stopResultsObserver();
+  removeResultsToggleRoot();
+  removeRoot();
+  removeCollapsedAiButton();
+}
+
+async function storageLocalGetSafe(
+  keys?: string | string[] | Record<string, unknown>
+): Promise<Record<string, unknown>> {
+  if (!extensionContextValid) return {};
+  try {
+    return (await chrome.storage.local.get(keys)) as Record<string, unknown>;
+  } catch (error) {
+    if (isExtensionContextInvalidated(error)) {
+      markExtensionContextInvalidated();
+      return {};
+    }
+    throw error;
+  }
+}
+
+async function storageLocalSetSafe(items: Record<string, unknown>) {
+  if (!extensionContextValid) return;
+  try {
+    await chrome.storage.local.set(items);
+  } catch (error) {
+    if (isExtensionContextInvalidated(error)) {
+      markExtensionContextInvalidated();
+      return;
+    }
+    throw error;
+  }
 }
 
 function createRoot(): HTMLDivElement {
@@ -336,13 +379,24 @@ function renderListingCard() {
 }
 
 async function sendMessage<T>(message: unknown): Promise<T> {
-  const response = (await chrome.runtime.sendMessage(message)) as
-    | { ok: true; payload: T }
-    | { ok: false; error: string };
-  if (!response.ok) {
-    throw new Error(response.error);
+  if (!extensionContextValid) {
+    throw new Error("Extension context invalidated.");
   }
-  return response.payload;
+  try {
+    const response = (await chrome.runtime.sendMessage(message)) as
+      | { ok: true; payload: T }
+      | { ok: false; error: string };
+    if (!response.ok) {
+      throw new Error(response.error);
+    }
+    return response.payload;
+  } catch (error) {
+    if (isExtensionContextInvalidated(error)) {
+      markExtensionContextInvalidated();
+      throw new Error("Extension context invalidated.");
+    }
+    throw error;
+  }
 }
 
 function listingKeysFromUrl(href: string): string[] {
@@ -413,7 +467,7 @@ function createResultsToggleRoot(): HTMLDivElement {
     select.value = resultsFilterMode;
     select.addEventListener("change", () => {
       resultsFilterMode = select.value as ResultsFilterMode;
-      void chrome.storage.local.set({ [RESULTS_FILTER_STORAGE_KEY]: resultsFilterMode });
+      void storageLocalSetSafe({ [RESULTS_FILTER_STORAGE_KEY]: resultsFilterMode });
       void applyResultsFilter();
     });
   }
@@ -475,12 +529,12 @@ function makeResultsRootDraggable(root: HTMLDivElement) {
     dragState = null;
     const rect = root.getBoundingClientRect();
     const position: ResultsFilterPosition = { left: Math.round(rect.left), top: Math.round(rect.top) };
-    void chrome.storage.local.set({ [RESULTS_FILTER_POSITION_STORAGE_KEY]: position });
+    void storageLocalSetSafe({ [RESULTS_FILTER_POSITION_STORAGE_KEY]: position });
   });
 }
 
 async function restoreResultsRootPosition(root: HTMLDivElement) {
-  const saved = await chrome.storage.local.get(RESULTS_FILTER_POSITION_STORAGE_KEY);
+  const saved = await storageLocalGetSafe(RESULTS_FILTER_POSITION_STORAGE_KEY);
   const position = saved[RESULTS_FILTER_POSITION_STORAGE_KEY] as ResultsFilterPosition | undefined;
   if (!position || typeof position.left !== "number" || typeof position.top !== "number") {
     return;
@@ -556,7 +610,7 @@ function getResultCardElement(anchor: HTMLAnchorElement): HTMLElement | null {
 }
 
 async function loadTrackedSets(): Promise<TrackedSets> {
-  const payload = await chrome.storage.local.get(STORE_STORAGE_KEY);
+  const payload = await storageLocalGetSafe(STORE_STORAGE_KEY);
   const state = (payload[STORE_STORAGE_KEY] || {}) as {
     listingsById?: Record<string, { url?: string }>;
     activityById?: Record<string, { contactedAt?: string[] }>;
@@ -596,6 +650,7 @@ function modeLabel(mode: ResultsFilterMode): string {
 }
 
 async function applyResultsFilter() {
+  if (!extensionContextValid) return;
   if (!isLikelyResultsPage()) {
     resetHiddenResultCards();
     removeResultsToggleRoot();
@@ -734,7 +789,7 @@ async function syncPageState() {
 }
 
 async function loadResultsPreferences() {
-  const saved = await chrome.storage.local.get([RESULTS_FILTER_STORAGE_KEY, RESULTS_FILTER_POSITION_STORAGE_KEY]);
+  const saved = await storageLocalGetSafe([RESULTS_FILTER_STORAGE_KEY, RESULTS_FILTER_POSITION_STORAGE_KEY]);
   const value = saved[RESULTS_FILTER_STORAGE_KEY];
   if (value === "show_all" || value === "hide_viewed_only" || value === "hide_viewed_and_contacted") {
     resultsFilterMode = value;
@@ -744,6 +799,10 @@ async function loadResultsPreferences() {
 function startNavigationWatcher() {
   const runSync = () => {
     void syncPageState().catch((error: unknown) => {
+      if (isExtensionContextInvalidated(error)) {
+        markExtensionContextInvalidated();
+        return;
+      }
       currentError = error instanceof Error ? error.message : "Failed to sync listing state.";
       renderListingCard();
     });
