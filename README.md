@@ -1,6 +1,6 @@
-# StreetEasy AI Assistant
+# HomeHunt Assistant
 
-Chrome extension (Manifest V3) to track StreetEasy listings you've viewed/contacted and run AI evaluation checks per listing.
+Chrome extension (Manifest V3) to track listings you've viewed/contacted on StreetEasy and run AI evaluation checks per listing.
 
 ## Features (Scaffold)
 - Auto-track viewed listings on StreetEasy listing pages

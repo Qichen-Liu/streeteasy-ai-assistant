@@ -146,7 +146,7 @@ function createCollapsedAiButton(): HTMLButtonElement {
 
   const icon = document.createElement("img");
   icon.src = chrome.runtime.getURL("assets/icons/icon.svg");
-  icon.alt = "StreetEasy AI";
+  icon.alt = "HomeHunt Assistant";
   icon.style.width = "23px";
   icon.style.height = "23px";
   icon.style.flex = "0 0 auto";
@@ -291,8 +291,8 @@ function renderListingCard() {
   root.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;background:#111318;padding:14px 16px;">
       <div id="se-ai-drag-handle" style="display:flex;align-items:center;gap:10px;cursor:move;flex:1;min-width:0;user-select:none;">
-        <img src="${chrome.runtime.getURL("assets/icons/icon.svg")}" alt="StreetEasy AI" style="width:40px;height:40px;display:block;flex:0 0 auto;" />
-        <strong style="font-size:16px;letter-spacing:0.2px;color:#f8fafc;">StreetEasy Assistant</strong>
+        <img src="${chrome.runtime.getURL("assets/icons/icon.svg")}" alt="HomeHunt Assistant" style="width:40px;height:40px;display:block;flex:0 0 auto;" />
+        <strong style="font-size:16px;letter-spacing:0.2px;color:#f8fafc;">HomeHunt Assistant</strong>
       </div>
       <button id="se-collapse-ai" type="button" title="Minimize" style="border:0;border-radius:8px;background:transparent;padding:2px 6px;cursor:pointer;font-size:24px;line-height:1;color:#f8fafc;">✕</button>
     </div>
@@ -448,7 +448,7 @@ function createResultsToggleRoot(): HTMLDivElement {
   root.style.userSelect = "none";
   root.innerHTML = `
     <div id="se-results-header" style="display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:move;">
-      <strong style="font-size:12px;">StreetEasy Filters</strong>
+      <strong style="font-size:12px;">HomeHunt Filters</strong>
       <span id="se-results-count" style="color:#475569;font-size:11px;"></span>
     </div>
     <select id="se-results-mode" style="margin-top:6px;width:100%;border:1px solid #cbd5e1;border-radius:7px;padding:4px;background:#fff;cursor:pointer;">

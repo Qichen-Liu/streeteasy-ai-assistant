@@ -106,7 +106,7 @@ function renderItems() {
   if (!sorted.length) {
     const message =
       allItems.length === 0
-        ? "No listings tracked yet. Visit a StreetEasy listing page to start tracking."
+        ? "No listings tracked yet. Visit a supported listing page to start tracking."
         : "No listings match this filter.";
     listEl.className = "empty";
     listEl.textContent = message;
