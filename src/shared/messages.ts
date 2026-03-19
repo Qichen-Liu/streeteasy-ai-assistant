@@ -6,6 +6,7 @@ export type RuntimeRequest =
   | { type: "REMOVE_LISTING"; listingId: string }
   | { type: "REMOVE_LISTINGS"; listingIds: string[] }
   | { type: "CLEAR_TRACKED_DATA" }
+  | { type: "OPEN_OPTIONS" }
   | { type: "GET_LISTING_STATE"; listingId: string }
   | { type: "RUN_AI_EVALUATION"; listing: ListingData; contextText: string }
   | { type: "GET_RECENT_ACTIVITY" }

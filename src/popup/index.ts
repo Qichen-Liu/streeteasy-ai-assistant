@@ -20,6 +20,10 @@ const sortEl = document.getElementById("sortSelect") as HTMLSelectElement;
 const listEl = document.getElementById("list") as HTMLDivElement;
 const selectAllVisibleEl = document.getElementById("selectAllVisible") as HTMLInputElement;
 const removeSelectedBtnEl = document.getElementById("removeSelectedBtn") as HTMLButtonElement;
+const pinTipEl = document.getElementById("pinTip") as HTMLDivElement;
+const pinTipCloseEl = document.getElementById("pinTipClose") as HTMLButtonElement;
+
+const PIN_TIP_DISMISSED_KEY = "homehuntPinTipDismissedV1";
 
 let allItems: RecentItem[] = [];
 let selectedListingIds = new Set<string>();
@@ -173,6 +177,12 @@ async function load() {
   renderItems();
 }
 
+async function initPinTip() {
+  const payload = await chrome.storage.local.get(PIN_TIP_DISMISSED_KEY);
+  const dismissed = Boolean(payload[PIN_TIP_DISMISSED_KEY]);
+  pinTipEl.style.display = dismissed ? "none" : "flex";
+}
+
 filterEl.addEventListener("change", renderItems);
 sortEl.addEventListener("change", renderItems);
 
@@ -290,4 +300,10 @@ listEl.addEventListener("click", (event) => {
   })();
 });
 
+pinTipCloseEl.addEventListener("click", () => {
+  pinTipEl.style.display = "none";
+  void chrome.storage.local.set({ [PIN_TIP_DISMISSED_KEY]: true });
+});
+
+void initPinTip();
 void load();

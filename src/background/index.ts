@@ -330,6 +330,11 @@ async function clearTrackedData() {
 chrome.runtime.onMessage.addListener((request: RuntimeRequest, _sender, sendResponse) => {
   (async () => {
     switch (request.type) {
+      case "OPEN_OPTIONS": {
+        await chrome.runtime.openOptionsPage();
+        sendResponse({ ok: true });
+        break;
+      }
       case "UPSERT_VIEWED": {
         const payload = await upsertViewed(request.listing);
         sendResponse({ ok: true, payload });

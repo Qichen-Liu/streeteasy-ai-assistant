@@ -1,4 +1,4 @@
-import type { EvaluationData, ListingData } from "../shared/types";
+import type { EvaluationData, ListingData, PublicSettings } from "../shared/types";
 import {
   extractListingFromDocument,
   fallbackListingKeyFromUrl,
@@ -26,6 +26,7 @@ const RESULTS_TOGGLE_ID = "se-results-filter-root";
 const RESULTS_FILTER_STORAGE_KEY = "streeteasyResultsFilterMode";
 const RESULTS_FILTER_POSITION_STORAGE_KEY = "streeteasyResultsFilterPosition";
 const STORE_STORAGE_KEY = "streeteasyAssistantState";
+const ONBOARDING_COMPLETED_KEY = "homehuntOnboardingCompletedV1";
 
 let currentUrl = "";
 let trackedListingId = "";
@@ -38,6 +39,8 @@ let resultsObserver: MutationObserver | null = null;
 let aiPanelCollapsed = false;
 let aiPanelPosition: { left: number; top: number } | null = null;
 let extensionContextValid = true;
+let hasApiKey = false;
+let showOnboarding = false;
 
 type ResultsFilterPosition = {
   left: number;
@@ -270,6 +273,34 @@ function renderEvaluationSection(evaluation: EvaluationData | null): string {
   </div>`;
 }
 
+function renderAiSetupNotice(): string {
+  if (hasApiKey) return "";
+  return `<div style="margin-top:10px;padding:10px;border:1px solid #fde68a;border-radius:12px;background:#fffbeb;">
+    <div style="font-size:13px;color:#92400e;font-weight:700;">Connect OpenAI to enable AI Evaluate</div>
+    <div style="margin-top:4px;font-size:12px;color:#92400e;">Add your API key in Settings. Setup takes about 30 seconds.</div>
+    <button id="se-open-settings" type="button" style="margin-top:8px;border:0;border-radius:10px;padding:8px 10px;cursor:pointer;background:#10b981;color:#f8fafc;font-size:12px;font-weight:700;">Open Settings</button>
+  </div>`;
+}
+
+function renderOnboardingSection(): string {
+  if (!showOnboarding) return "";
+  const aiLine = hasApiKey
+    ? "3. AI is ready. Click <strong>AI Evaluate</strong> on any listing."
+    : "3. Add your OpenAI API key to unlock <strong>AI Evaluate</strong>.";
+  return `<div style="margin:0 0 12px;padding:10px;border:1px solid #bfdbfe;border-radius:12px;background:#eff6ff;">
+    <div style="font-size:13px;color:#1e3a8a;font-weight:800;">Quick start</div>
+    <div style="margin-top:6px;font-size:12px;color:#1e40af;line-height:1.35;">
+      1. Listings are auto-tracked as viewed.<br/>
+      2. Use <strong>Mark Contacted</strong> to track outreach.<br/>
+      ${aiLine}
+    </div>
+    <div style="margin-top:8px;display:flex;gap:8px;">
+      <button id="se-onboarding-open-settings" type="button" style="border:0;border-radius:10px;padding:8px 10px;cursor:pointer;background:#10b981;color:#f8fafc;font-size:12px;font-weight:700;">Open Settings</button>
+      <button id="se-onboarding-dismiss" type="button" style="border:1px solid #93c5fd;border-radius:10px;padding:8px 10px;cursor:pointer;background:#ffffff;color:#1e40af;font-size:12px;font-weight:700;">Dismiss</button>
+    </div>
+  </div>`;
+}
+
 function renderListingCard() {
   if (!currentListing) {
     removeRoot();
@@ -297,6 +328,7 @@ function renderListingCard() {
       <button id="se-collapse-ai" type="button" title="Minimize" style="border:0;border-radius:8px;background:transparent;padding:2px 6px;cursor:pointer;font-size:24px;line-height:1;color:#f8fafc;">✕</button>
     </div>
     <div style="padding:16px;">
+      ${renderOnboardingSection()}
       <div style="font-size:18px;font-weight:800;line-height:1.25;color:#111827;">${currentListing.address}</div>
       <div style="margin-top:6px;color:#6b7280;font-size:17px;">$ ${typeof currentListing.price === "number" ? currentListing.price.toLocaleString() : "Price n/a"}</div>
       <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:10px;">
@@ -322,8 +354,9 @@ function renderListingCard() {
       </div>
       <div style="margin-top:12px;display:flex;gap:10px;flex-direction:column;">
         <button id="se-toggle-contacted" ${isBusy ? "disabled" : ""} style="border:0;border-radius:16px;padding:11px 14px;cursor:pointer;background:#e5e7eb;color:#111827;font-size:17px;font-weight:700;opacity:${isBusy ? "0.6" : "1"};">${currentState.contacted ? "Unmark Contacted" : "Mark Contacted"}</button>
-        <button id="se-evaluate" ${isBusy ? "disabled" : ""} style="border:0;border-radius:16px;padding:11px 14px;cursor:pointer;background:#10b981;color:#f8fafc;font-size:17px;font-weight:800;opacity:${isBusy ? "0.6" : "1"};">${isBusy ? "Evaluating..." : "AI Evaluate"}</button>
+        <button id="se-evaluate" ${isBusy || !hasApiKey ? "disabled" : ""} style="border:0;border-radius:16px;padding:11px 14px;cursor:${isBusy || !hasApiKey ? "not-allowed" : "pointer"};background:#10b981;color:#f8fafc;font-size:17px;font-weight:800;opacity:${isBusy || !hasApiKey ? "0.55" : "1"};">${isBusy ? "Evaluating..." : hasApiKey ? "AI Evaluate" : "Set up AI to evaluate"}</button>
       </div>
+      ${renderAiSetupNotice()}
       ${currentError ? `<div style='margin-top:10px;color:#b91c1c;font-size:13px;'>${currentError}</div>` : ""}
       ${renderEvaluationSection(currentState.latestEvaluation)}
     </div>
@@ -332,6 +365,9 @@ function renderListingCard() {
   const contactBtn = root.querySelector<HTMLButtonElement>("#se-toggle-contacted");
   const evalBtn = root.querySelector<HTMLButtonElement>("#se-evaluate");
   const collapseBtn = root.querySelector<HTMLButtonElement>("#se-collapse-ai");
+  const openSettingsBtn = root.querySelector<HTMLButtonElement>("#se-open-settings");
+  const onboardingOpenSettingsBtn = root.querySelector<HTMLButtonElement>("#se-onboarding-open-settings");
+  const onboardingDismissBtn = root.querySelector<HTMLButtonElement>("#se-onboarding-dismiss");
   makeAiPanelDraggable(root);
 
   contactBtn?.addEventListener("click", async () => {
@@ -352,6 +388,11 @@ function renderListingCard() {
 
   evalBtn?.addEventListener("click", async () => {
     if (!currentListing || isBusy) return;
+    if (!hasApiKey) {
+      currentError = "OpenAI API key is missing. Add it in Settings to enable AI Evaluate.";
+      renderListingCard();
+      return;
+    }
     isBusy = true;
     currentError = "";
     renderListingCard();
@@ -374,6 +415,28 @@ function renderListingCard() {
   collapseBtn?.addEventListener("click", () => {
     aiPanelCollapsed = true;
     aiPanelPosition = null;
+    renderListingCard();
+  });
+
+  const openOptions = async () => {
+    try {
+      await sendMessage<void>({ type: "OPEN_OPTIONS" });
+    } catch {
+      // no-op: any runtime error will already be handled by sendMessage
+    }
+  };
+
+  openSettingsBtn?.addEventListener("click", () => {
+    void openOptions();
+  });
+
+  onboardingOpenSettingsBtn?.addEventListener("click", () => {
+    void openOptions();
+  });
+
+  onboardingDismissBtn?.addEventListener("click", () => {
+    showOnboarding = false;
+    void storageLocalSetSafe({ [ONBOARDING_COMPLETED_KEY]: true });
     renderListingCard();
   });
 }
@@ -752,6 +815,7 @@ async function syncPageState() {
     currentListing = null;
     trackedListingId = "";
     currentError = "";
+    showOnboarding = false;
     renderListingCard();
     removeCollapsedAiButton();
     ensureResultsObserver();
@@ -784,6 +848,11 @@ async function syncPageState() {
       listingId: listing.listingId
     });
   }
+
+  const settings = await sendMessage<PublicSettings>({ type: "GET_SETTINGS" });
+  hasApiKey = settings.hasApiKey;
+  const onboarding = await storageLocalGetSafe(ONBOARDING_COMPLETED_KEY);
+  showOnboarding = !Boolean(onboarding[ONBOARDING_COMPLETED_KEY]);
 
   renderListingCard();
 }
