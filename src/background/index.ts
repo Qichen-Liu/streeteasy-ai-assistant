@@ -140,22 +140,29 @@ async function runAiEvaluation(listing: ListingData, contextText: string): Promi
     return cached;
   }
 
-  const prompt = `Evaluate this NYC apartment listing with calibrated scoring. Return strict JSON only.
+  const prompt = `Evaluate this NYC apartment listing with a robust factor-based rubric. Return strict JSON only.
 
 Scoring rubric:
-- Use 0-100 scale with realistic center:
-  - 50 = typical/fair for neighborhood and unit type.
-  - 70+ = clearly above average.
-  - 30 or below = materially problematic.
-- Do NOT cluster scores into 0-10 unless truly extreme.
-- Price score reflects value-for-money (not absolute rent only).
-- Quality score reflects condition, layout, building quality, amenities, and livability.
-- If data is limited or ambiguous, keep scores near 40-60 and reduce confidence.
+- Use full 0-100 range when warranted (avoid defaulting to 50-60).
+- Price score reflects value-for-money, not absolute rent.
+- Quality score reflects condition, layout, building quality, management, and livability.
+- Prefer non-rounded values (not mostly multiples of 5).
+- If evidence is limited, lower confidence and explain uncertainty, but still provide best estimate.
+
+Required factor subscores (0-100):
+- priceFactors.marketValueFit: price vs similar neighborhood/unit expectations
+- priceFactors.sizeValueFit: rent relative to usable size/layout
+- priceFactors.costStability: concessions/fees/likely effective rent stability
+- priceFactors.locationValue: location convenience vs likely drawbacks
+- qualityFactors.conditionAmenities: unit/building quality and amenities
+- qualityFactors.layoutLightNoise: layout efficiency, light, and noise profile
+- qualityFactors.buildingOperations: management/service quality signals
+- qualityFactors.livabilityRisk: policy/maintenance/disclosure/livability risk balance
 
 Consistency rules:
-- Scores must align with summary text (no contradictions).
+- Final scores must align with summary text and evidence.
 - If confidence is high, evidence must be specific and strong.
-- Risk flags should be concise human-readable phrases (plain English, no underscores), actionable, and max 6 items.
+- Risk flags must be concise human-readable phrases (plain English, no underscores), actionable, max 6.
 - Summary should be <= 80 words.
 
 Listing:
@@ -183,7 +190,7 @@ reportMode=${reportMode}; riskPriorities=${riskPriorities.join(",")}`;
         {
           role: "system",
           content:
-            "You are a conservative NYC rental analyst. Output strict JSON with keys: priceScore, qualityScore, riskFlags, summary, confidence, evidence. confidence must be low|medium|high. Keep scoring calibrated around 50 for typical listings and avoid contradictory scoring vs narrative."
+            "You are a rigorous NYC rental analyst. Output strict JSON with keys: priceScore, qualityScore, priceFactors, qualityFactors, riskFlags, summary, confidence, evidence. confidence must be low|medium|high. Use full score range when justified and keep scoring consistent with narrative evidence."
         },
         {
           role: "user",
@@ -200,6 +207,28 @@ reportMode=${reportMode}; riskPriorities=${riskPriorities.join(",")}`;
             properties: {
               priceScore: { type: "number" },
               qualityScore: { type: "number" },
+              priceFactors: {
+                type: "object",
+                additionalProperties: false,
+                properties: {
+                  marketValueFit: { type: "number" },
+                  sizeValueFit: { type: "number" },
+                  costStability: { type: "number" },
+                  locationValue: { type: "number" }
+                },
+                required: ["marketValueFit", "sizeValueFit", "costStability", "locationValue"]
+              },
+              qualityFactors: {
+                type: "object",
+                additionalProperties: false,
+                properties: {
+                  conditionAmenities: { type: "number" },
+                  layoutLightNoise: { type: "number" },
+                  buildingOperations: { type: "number" },
+                  livabilityRisk: { type: "number" }
+                },
+                required: ["conditionAmenities", "layoutLightNoise", "buildingOperations", "livabilityRisk"]
+              },
               riskFlags: {
                 type: "array",
                 items: { type: "string" },
@@ -218,7 +247,16 @@ reportMode=${reportMode}; riskPriorities=${riskPriorities.join(",")}`;
                 required: ["price", "quality", "risks"]
               }
             },
-            required: ["priceScore", "qualityScore", "riskFlags", "summary", "confidence", "evidence"]
+            required: [
+              "priceScore",
+              "qualityScore",
+              "priceFactors",
+              "qualityFactors",
+              "riskFlags",
+              "summary",
+              "confidence",
+              "evidence"
+            ]
           }
         }
       }

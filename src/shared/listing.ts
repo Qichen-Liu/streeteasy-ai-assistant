@@ -16,9 +16,10 @@ function textFromSelectors(doc: Document, selectors: string[]): string | undefin
 
 export function parseNumber(text?: string | null): number | undefined {
   if (!text) return undefined;
-  const digits = text.replace(/[^0-9.]/g, "");
-  if (!digits) return undefined;
-  const value = Number(digits);
+  const match = text.match(/-?\d[\d,]*(?:\.\d+)?/);
+  if (!match?.[0]) return undefined;
+  const normalized = match[0].replace(/,/g, "");
+  const value = Number(normalized);
   return Number.isFinite(value) ? value : undefined;
 }
 
