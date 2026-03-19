@@ -51,5 +51,6 @@ test("fallbackListingKeyFromUrl creates stable key for non-numeric listing paths
 test("parseNumber handles currency and decimals", () => {
   assert.equal(parseNumber("$4,350"), 4350);
   assert.equal(parseNumber("1.5"), 1.5);
+  assert.equal(parseNumber("$4,200 FOR RENT ↓ $300"), 4200);
   assert.equal(parseNumber(undefined), undefined);
 });
